@@ -6,11 +6,28 @@ import os
 
 import numpy as np
 from keras.models import load_model
+from pprint import pprint
 
 from layers.decaying_dropout import DecayingDropout
 from model import DIIN
 from optimizers.l2optimizer import L2Optimizer
 from preprocess import BioNLPPreprocessor
+
+
+def to_dense(predictions, source):
+    source = {item['text']: item for item in source}
+    for prediction in predictions:
+        id = prediction['text']
+        t = prediction['interaction_tuple'][0]
+        a = prediction['interaction_tuple'][1]
+        b = prediction['interaction_tuple'][2]
+        for info in source[id][u'extracted_information']:
+            if info['participant_a'] == a and info['participant_b'] == b and info['interaction_type'] == t:
+                info['label'] = prediction['prediction']
+
+    dense = [v for k, v in source.items()]
+    with open('out.json', 'w') as f:
+        json.dump(dense, f, indent=True)
 
 
 def predict(model, p, h, chars_per_word, preprocessor,
@@ -44,7 +61,11 @@ def predict(model, p, h, chars_per_word, preprocessor,
             sample['prediction'] = int(prediction)
 
     with open(output_path, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=True)
+
+    # Load json of previous format and insert labels inside it
+    with open('0.1.tag_NER_v2.json', 'r') as f: source = json.load(f)
+    to_dense(data, source)
 
 
 def main():

@@ -205,14 +205,14 @@ class BasePreprocessor(object):
     def parse_sentence(self, sentence, max_words, chars_per_word):
         # Words
         words, parts_of_speech = self.get_words_with_part_of_speech(sentence)
-        word_ids = [self.word_to_id[word] for word in words]
+        word_ids = [self.word_to_id[word] if word in self.word_to_id else 777 for word in words]
 
         # Syntactical features
         syntactical_features = [self.part_of_speech_to_id[part] for part in parts_of_speech]
         syntactical_one_hot = np.eye(len(self.part_of_speech_to_id) + 2)[syntactical_features]  # Convert to 1-hot
 
         # Chars
-        chars = [[self.char_to_id[c] for c in word] for word in words]
+        chars = [[self.char_to_id[c] if c in self.char_to_id else 7 for c in word] for word in words]
         chars = pad_sequences(chars, maxlen=chars_per_word, padding='post', truncating='post')
         
         return (words, parts_of_speech, np.array(word_ids, copy=False),
