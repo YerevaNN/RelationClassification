@@ -145,7 +145,6 @@ def main():
     parser.add_argument('--growth_rate',                 default=20,        help='Growth rate (DenseNet)',                  type=int)
     parser.add_argument('--layers_per_dense_block',      default=8,         help='Layers in one Dense block (DenseNet)',    type=int)
     parser.add_argument('--dense_blocks',                default=3,         help='Number of Dense blocks (DenseNet)',       type=int)
-    parser.add_argument('--labels',                      default=3,         help='Number of output labels',                 type=int)
     parser.add_argument('--load_dir',                    default='data',    help='Directory of the data',   type=str)
     parser.add_argument('--models_dir',                  default='models/', help='Where to save models',    type=str)
     parser.add_argument('--logdir',                      default='logs',    help='Tensorboard logs dir',    type=str)
@@ -193,7 +192,7 @@ def main():
                        growth_rate=args.growth_rate,
                        layers_per_dense_block=args.layers_per_dense_block,
                        nb_dense_blocks=args.dense_blocks,
-                       nb_labels=args.labels)
+                       nb_labels=train_data[-1].shape[-1])
 
     ''' Initialize Gym for training '''
     gym = Gym(model=model,

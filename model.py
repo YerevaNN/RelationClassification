@@ -1,4 +1,5 @@
 from keras import Model
+from keras.engine import InputLayer
 from keras.layers import Input, Dense, Embedding, Conv1D, GlobalMaxPooling1D, Concatenate, Reshape, GRU, Lambda
 from keras.layers.wrappers import Bidirectional, TimeDistributed
 from keras.models import Sequential
@@ -93,9 +94,11 @@ class Classifier(Model):
 
             # Share weights of character-level embedding for premise and hypothesis
             character_embedding_layer = TimeDistributed(Sequential([
+                InputLayer(input_shape=(chars_per_word,)),
                 Embedding(input_dim=100, output_dim=char_embedding_size, input_length=chars_per_word),
-                Conv1D(filters=char_conv_filters, kernel_size=char_conv_kernel_size),
-                GlobalMaxPooling1D()
+                # Conv1D(filters=char_conv_filters, kernel_size=char_conv_kernel_size),
+                # GlobalMaxPooling1D()
+                Bidirectional(GRU(units=24))
             ]), name='CharEmbedding')
             # character_embedding_layer.build(input_shape=(None, None, chars_per_word))
             premise_char_embedding    = character_embedding_layer(premise_char_input)
