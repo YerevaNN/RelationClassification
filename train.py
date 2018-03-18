@@ -10,7 +10,7 @@ from keras.optimizers import SGD, Adam, Adagrad
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
 
-from model import DIIN
+from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
 from util import ChunkDataManager
 
@@ -172,28 +172,28 @@ def main():
     adagrad = L2Optimizer(Adagrad(), args.l2_full_step, args.l2_full_ratio, args.l2_diference_penalty)
     sgd = L2Optimizer(SGD(lr=3e-3), args.l2_full_step, args.l2_full_ratio, args.l2_diference_penalty)
 
-    model = DIIN(p=None,  # or train_data[0].shape[-1]
-                 h=None,  # or train_data[1].shape[-1]
-                 include_word_vectors=not args.omit_word_vectors,
-                 word_embedding_weights=word_embedding_weights,
-                 train_word_embeddings=args.train_word_embeddings,
-                 include_chars=not args.omit_chars,
-                 chars_per_word=chars_per_word,
-                 char_embedding_size=args.char_embed_size,
-                 char_conv_filters=args.char_conv_filters,
-                 char_conv_kernel_size=args.char_conv_kernel,
-                 include_syntactical_features=not args.omit_syntactical_features,
-                 syntactical_feature_size=syntactical_feature_size,
-                 include_exact_match=not args.omit_exact_match,
-                 dropout_initial_keep_rate=args.dropout_initial_keep_rate,
-                 dropout_decay_rate=args.dropout_decay_rate,
-                 dropout_decay_interval=args.dropout_decay_interval,
-                 first_scale_down_ratio=args.first_scale_down_ratio,
-                 transition_scale_down_ratio=args.transition_scale_down_ratio,
-                 growth_rate=args.growth_rate,
-                 layers_per_dense_block=args.layers_per_dense_block,
-                 nb_dense_blocks=args.dense_blocks,
-                 nb_labels=args.labels)
+    model = Classifier(p=None,  # or train_data[0].shape[-1]
+                       h=None,  # or train_data[1].shape[-1]
+                       include_word_vectors=not args.omit_word_vectors,
+                       word_embedding_weights=word_embedding_weights,
+                       train_word_embeddings=args.train_word_embeddings,
+                       include_chars=not args.omit_chars,
+                       chars_per_word=chars_per_word,
+                       char_embedding_size=args.char_embed_size,
+                       char_conv_filters=args.char_conv_filters,
+                       char_conv_kernel_size=args.char_conv_kernel,
+                       include_syntactical_features=not args.omit_syntactical_features,
+                       syntactical_feature_size=syntactical_feature_size,
+                       include_exact_match=not args.omit_exact_match,
+                       dropout_initial_keep_rate=args.dropout_initial_keep_rate,
+                       dropout_decay_rate=args.dropout_decay_rate,
+                       dropout_decay_interval=args.dropout_decay_interval,
+                       first_scale_down_ratio=args.first_scale_down_ratio,
+                       transition_scale_down_ratio=args.transition_scale_down_ratio,
+                       growth_rate=args.growth_rate,
+                       layers_per_dense_block=args.layers_per_dense_block,
+                       nb_dense_blocks=args.dense_blocks,
+                       nb_labels=args.labels)
 
     ''' Initialize Gym for training '''
     gym = Gym(model=model,

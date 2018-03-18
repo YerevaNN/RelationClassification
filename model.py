@@ -8,7 +8,7 @@ from keras import backend as K
 from layers.decaying_dropout import DecayingDropout
 
 
-class DIIN(Model):
+class Classifier(Model):
     def __init__(self,
                  p=None, h=None,
                  include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
@@ -48,7 +48,7 @@ class DIIN(Model):
         """
 
         if inputs or outputs:
-            super(DIIN, self).__init__(inputs=inputs, outputs=outputs, name=name)
+            super(Classifier, self).__init__(inputs=inputs, outputs=outputs, name=name)
             return
 
         if include_word_vectors:
@@ -131,13 +131,14 @@ class DIIN(Model):
 
         '''Encoding layer'''
         # Now we have the embedded premise [pxd] along with embedded hypothesis [hxd]
-        premise_encoding    = Bidirectional(GRU(units=300, return_sequences=True))(premise_embedding)
-        hypothesis_encoding = Bidirectional(GRU(units=300, return_sequences=True))(hypothesis_embedding)
+        premise_encoding    = Bidirectional(GRU(units=100, return_sequences=True))(premise_embedding)
+        hypothesis_encoding = Bidirectional(GRU(units=100, return_sequences=True))(hypothesis_embedding)
 
         '''Interaction layer'''
         concat = Concatenate(axis=1)([premise_encoding, hypothesis_encoding])
-        interaction = Bidirectional(GRU(units=500))(concat)
+        interaction = Bidirectional(GRU(units=200))(concat)
 
         '''Output layer'''
-        out = Dense(units=nb_labels, activation='softmax', name='Output')(interaction)
-        super(DIIN, self).__init__(inputs=inputs, outputs=out, name=name)
+        features = Dense(units=128, activation='tanh', name='features')(interaction)
+        out = Dense(units=nb_labels, activation='softmax', name='Output')(features)
+        super(Classifier, self).__init__(inputs=inputs, outputs=out, name=name)
