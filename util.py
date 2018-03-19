@@ -5,9 +5,7 @@ from os import path
 
 import numpy as np
 from keras import backend as K
-from keras.callbacks import Callback
 from keras.utils import get_file
-from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
 
@@ -81,18 +79,33 @@ def broadcast_last_axis(x):
     return y + K.expand_dims(x)
 
 
-class AllMetrics(Callback):
-    def on_epoch_end(self, batch, logs=None):
-        predictions = self.model.predict(batch[:-1])
-        t, p = np.argmax(batch[-1], axis=1), np.argmax(predictions, axis=1)
+def precision(y_true, y_pred):
+    """Precision metric.
 
-        # predictions = self.model.predict(self.validation_data[:-1])
-        # t, p = np.argmax(self.validation_data[-1], axis=1), np.argmax(predictions, axis=1)
-        self.confusion_matrix = confusion_matrix(t, p)
-        self.precision = precision_score(t, p)
-        self.recall = recall_score(t, p)
-        self.f1 = f1_score(t, p)
-        print(self.confusion_matrix)
-        print("Precision: {:.4f}".format(self.precision))
-        print("Recall: {:.4f}".format(self.recall))
-        print("F-score: {:.4f}".format(self.f1))
+    Only computes a batch-wise average of precision.
+
+    Computes the precision, a metric for multi-label classification of
+    how many selected items are relevant.
+    """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    return true_positives / (predicted_positives + K.epsilon())
+
+
+def recall(y_true, y_pred):
+    """Recall metric.
+
+    Only computes a batch-wise average of recall.
+
+    Computes the recall, a metric for multi-label classification of
+    how many relevant items are selected.
+    """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    return true_positives / (possible_positives + K.epsilon())
+
+
+def f1(y_true, y_pred):
+    p = precision(y_true, y_pred)
+    r = recall(y_true, y_pred)
+    return 2 * ((p * r) / (p + r))

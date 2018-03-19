@@ -1,11 +1,11 @@
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import os
 import random
-from pprint import pprint
-
 import fire
+
+from pprint import pprint
 
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 from keras.optimizers import Adam
@@ -13,8 +13,8 @@ from keras.optimizers import Adam
 from data.mapping.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
-from util import get_word2vec_file_path, AllMetrics
 from preprocess import BioNLPPreprocessor
+from util import get_word2vec_file_path, precision, recall, f1
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -44,7 +44,7 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           load_dir='data', models_dir='models', log_dir='logs',
           processor_path='data/processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
-          dataset='bionlp', labels=2,
+          dataset='bionlp',
           omit_word_vectors=False, omit_chars=False, omit_syntactical_features=False, omit_exact_match=False):
     """
     Train the model
@@ -94,7 +94,7 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
         valid_processor.omit_interactions = {valid_omit_interaction}
 
     if processor_path is not None:
-        print('Saving processor...', end=' ')
+        print('Saving processor...')
         with open(processor_path, 'wb') as f:
             pickle.dump(train_processor, file=f)
 
@@ -113,14 +113,20 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                        dropout_initial_keep_rate=dropout_initial_keep_rate,
                        dropout_decay_rate=dropout_decay_rate,
                        dropout_decay_interval=dropout_decay_interval,
-                       nb_labels=labels)
+                       nb_labels=len(train_processor.get_labels()))
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy', precision, recall, f1])
 
     ''' Initialize training '''
     print('Loading data...')
     train_samples = train_processor.load_data(train_path)
     valid_samples = valid_processor.load_data(dev_path)
+
+    ''' Give weights to classes '''
+    one = sum([train_processor.get_label(sample) for sample in train_samples])
+    two = len(train_samples) - one
+    class_weights = [len(train_samples) / (1. * one), len(train_samples) / (1. * two)]
+
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
                         validation_data=data_generator(samples=valid_samples, processor=valid_processor, batch_size=batch_size),
                         steps_per_epoch=steps_per_epoch,
@@ -128,8 +134,8 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=3),
-                                   AllMetrics()])
+                                   EarlyStopping(patience=3)],
+                        class_weight=class_weights)
 
 
 if __name__ == '__main__':
