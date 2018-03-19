@@ -5,7 +5,7 @@ import json
 import fire
 import numpy as np
 from keras.models import load_model
-from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.metrics import f1_score, confusion_matrix, accuracy_score
 from tqdm import tqdm
 
 from preprocess import BioNLPPreprocessor
@@ -13,7 +13,6 @@ from layers.decaying_dropout import DecayingDropout
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
 from util import precision, recall, f1
-
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -21,7 +20,7 @@ except ImportError: import _pickle as pickle
 def predict(model, preprocessor, data, output_path, batch_size=70):
 
     eval_predictions = []
-    eval_labels = []
+    eval_labels = [preprocessor.get_label(sample) for sample in data]
     for batch_start in tqdm(range(0, len(data), batch_size)):
         batch = data[batch_start: batch_start + batch_size]
         data_input = preprocessor.parse(data=batch)
@@ -29,15 +28,14 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
 
         model_outputs = model.predict(data_input)
         predictions = np.argmax(model_outputs, axis=1)
-        labels = [preprocessor.get_label(sample) for sample in batch]
 
-        eval_predictions += list(predictions)
-        eval_labels += list(labels)
+        eval_predictions += list(predictions.flatten())
         for sample, prediction in zip(batch, predictions):
             sample['prediction'] = int(prediction)
 
     print('Confusion Matrix:\n', confusion_matrix(eval_labels, eval_predictions))
-    print('F score: ', f1_score(eval_labels, eval_predictions))
+    print('F score:', f1_score(eval_labels, eval_predictions))
+    print('Accuracy:', accuracy_score(eval_labels, eval_predictions))
 
     with open(output_path, 'w') as f:
         json.dump(data, f, indent=True)
