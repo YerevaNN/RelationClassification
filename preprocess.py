@@ -9,7 +9,7 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
-from data.mapping.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
+from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from util import get_word2vec_file_path, ChunkDataManager
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle

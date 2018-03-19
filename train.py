@@ -1,5 +1,6 @@
 from __future__ import division
 from __future__ import print_function
+from __future__ import absolute_import
 
 import os
 import random
@@ -10,7 +11,7 @@ from pprint import pprint
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 from keras.optimizers import Adam
 
-from data.mapping.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
+from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
 from preprocess import BioNLPPreprocessor
