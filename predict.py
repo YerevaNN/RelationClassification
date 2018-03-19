@@ -2,30 +2,22 @@ from __future__ import print_function
 
 import argparse
 import json
-import os
 
 import numpy as np
 from keras.models import load_model
 
+from preprocess import BioNLPPreprocessor
 from layers.decaying_dropout import DecayingDropout
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
-from preprocess import BioNLPPreprocessor
+try:                import cPickle as pickle
+except ImportError: import _pickle as pickle
 
 
-def predict(model, p, h, chars_per_word, preprocessor,
-            input_path, output_path, mappings_dir,
+def predict(model, p, h, chars_per_word, preprocessor, data, output_path,
             batch_size=70,
             include_word_vectors=True, include_chars=True,
             include_syntactical_features=True, include_exact_match=True):
-
-    # Init mappings of the preprocessor
-    preprocessor.load_mappings(word_mapping_file=os.path.join(mappings_dir, 'word_to_id.json'),
-                               char_mapping_file=os.path.join(mappings_dir, 'car_to_id.json'),
-                               part_of_speech_mapping_file=os.path.join(mappings_dir, 'part_of_speech_to_id.json'))
-
-    with open(input_path, 'r') as f:
-        data = json.load(f)
 
     for batch_start in range(0, len(data), batch_size):
         batch = data[batch_start: batch_start + batch_size]
@@ -55,8 +47,7 @@ def main():
     parser.add_argument('--batch_size',     default=70,         help='Batch size while making predictions', type=int)
     parser.add_argument('--max_word_vecs',  default=None,       help='Maximum number of word vectors',      type=int)
     parser.add_argument('--dataset',        default='bionlp',   help='Which preprocessor to use',           type=str)
-    parser.add_argument('--mappings_dir',   default='mappings', help='Path to mappings',                    type=str)
-    parser.add_argument('--word_vec_load_path', default=None,   help='Path to load word vectors',           type=str)
+    parser.add_argument('--processor_path', default='data/processor.pkl',   help='Path to data processor',  type=str)
     parser.add_argument('--normalize_word_vectors',      action='store_true')
     parser.add_argument('--omit_word_vectors',           action='store_true')
     parser.add_argument('--omit_chars',                  action='store_true')
@@ -68,25 +59,24 @@ def main():
     args = parser.parse_args()
 
     if args.dataset == 'bionlp':
-        snli_preprocessor = BioNLPPreprocessor()
-        # path = get_snli_file_path()
         model = load_model(args.model, custom_objects={'DIIN': Classifier,
                                                        'DecayingDropout': DecayingDropout,
                                                        'L2Optimizer': L2Optimizer})
-
-        predict(model=model,
-                p=args.p, h=args.h, chars_per_word=args.chars_per_word,
-                preprocessor=snli_preprocessor,
-                input_path=args.input,
-                output_path=args.output,
-                mappings_dir=args.mappings_dir,
-                batch_size=args.batch_size,
-                include_word_vectors=not args.omit_word_vectors,
-                include_chars=not args.omit_chars,
-                include_syntactical_features=not args.omit_syntactical_features,
-                include_exact_match=not args.omit_exact_match)
+        with open(args.input_path, 'r') as f:        data = json.load(f)
+        with open(args.processor_path, 'rb') as f:   preprocessor = pickle.load(f)
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
+
+    predict(model=model,
+            p=args.p, h=args.h, chars_per_word=args.chars_per_word,
+            preprocessor=preprocessor,
+            data=data,
+            output_path=args.output,
+            batch_size=args.batch_size,
+            include_word_vectors=not args.omit_word_vectors,
+            include_chars=not args.omit_chars,
+            include_syntactical_features=not args.omit_syntactical_features,
+            include_exact_match=not args.omit_exact_match)
 
 
 if __name__ == '__main__':

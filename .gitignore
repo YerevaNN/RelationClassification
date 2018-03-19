@@ -3,6 +3,9 @@ mappings/*
 .idea/
 lib/*
 data/*
+!data/mapping/
+!data/generators
+logs/*
 
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template

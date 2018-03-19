@@ -1,7 +1,6 @@
 from __future__ import print_function
 
 import argparse
-import io
 import json
 import os
 
@@ -10,26 +9,26 @@ import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
+from data.mapping.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from util import get_word2vec_file_path, ChunkDataManager
+try:                import cPickle as pickle
+except ImportError: import _pickle as pickle
 
 
-def pad(x, maxlen):
-    if len(x) <= maxlen:
-        pad_width = ((0, maxlen - len(x)), (0, 0))
+def pad(x, max_len):
+    if len(x) <= max_len:
+        pad_width = ((0, max_len - len(x)), (0, 0))
         return np.pad(x, pad_width=pad_width, mode='constant', constant_values=0)
-    res = x[:maxlen]
-    return np.array(res, copy=False)
+    res = x[:max_len]
+    return np.array(res)
 
 
 class BasePreprocessor(object):
-
-    def __init__(self):
-        self.word_to_id = {}
-        self.char_to_id = {}
-        self.vectors = []
-        self.part_of_speech_to_id = {}
-        self.unique_words = set()
-        self.unique_parts_of_speech = set()
+    def __init__(self, word_mapping=None, char_mapping=None, part_of_speech_mapping=None, omit_labels=None):
+        self.word_mapping = word_mapping
+        self.char_mapping = char_mapping
+        self.part_of_speech_mapping = part_of_speech_mapping
+        self.omit_labels = omit_labels if omit_labels is not None else set()
 
     @staticmethod
     def load_data(file_path):
@@ -40,43 +39,6 @@ class BasePreprocessor(object):
             lines = f.readlines()
             text = '[' + ','.join(lines) + ']'
             return json.loads(text)
-
-    @staticmethod
-    def load_word_vectors(file_path, separator=' ', normalize=True, max_words=None):
-        """
-        :return: words[], np.array(vectors)
-        """
-        seen_words = set()
-        words = []
-        vectors = []
-        vector_size = None
-        print('Loading', file_path)
-        with io.open(file_path, mode='r', encoding='utf-8') as f:
-            for line in tqdm(f):
-                values = line.replace(' \n', '').split(separator)
-                word = values[0]
-                if len(values) < 10 or word in seen_words:
-                    print('Invalid word:', word)
-                    continue
-
-                seen_words.add(word)
-                vec = np.asarray(values[1:], dtype='float32')
-                if normalize:
-                    vec /= np.linalg.norm(vec, ord=2)
-
-                if vector_size is None:
-                    vector_size = len(vec)
-                elif len(vec) != vector_size:
-                    print('Skipping', word)
-                    continue
-
-                words.append(word)
-                vectors.append(vec)
-                if max_words and len(words) >= max_words:
-                    break
-
-        vectors = np.array(vectors, dtype='float32', copy=False)
-        return words, vectors
 
     def get_words_with_part_of_speech(self, sentence):
         """
@@ -108,86 +70,7 @@ class BasePreprocessor(object):
                 all_words           += premise_words  + hypothesis_words
                 all_parts_of_speech += premise_speech + hypothesis_speech
 
-        self.unique_words           = set(all_words)
-        self.unique_parts_of_speech = set(all_parts_of_speech)
-
-    @staticmethod
-    def get_not_present_word_vectors(not_present_words, word_vector_size, normalize):
-        res_words = []
-        res_vectors = []
-        for word in not_present_words:
-            vec = np.random.uniform(size=word_vector_size)
-            if normalize:
-                vec /= np.linalg.norm(vec, ord=2)
-            res_words.append(word)
-            res_vectors.append(vec)
-        return res_words, res_vectors
-
-    def init_word_to_vectors(self, vectors_file_path, needed_words, normalize=False, max_loaded_word_vectors=None):
-        """
-        Initialize:
-            {word -> vec} mapping
-            {word -> id}  mapping
-            [vectors] array
-        :param max_loaded_word_vectors: maximum number of words to load from word-vec file
-        :param vectors_file_path: file where word-vectors are stored (Glove .txt file)
-        :param needed_words: words for which to keep word-vectors
-        :param normalize: normalize word vectors
-        """
-        needed_words = set(needed_words)
-        words, self.vectors = self.load_word_vectors(file_path=vectors_file_path,
-                                                     normalize=normalize,
-                                                     max_words=max_loaded_word_vectors)
-        word_vector_size = self.vectors.shape[-1]
-        self.vectors = list(self.vectors)
-
-        present_words = needed_words.intersection(words)
-        not_present_words = needed_words - present_words
-        print('#Present words:', len(present_words), '\t#Not present words', len(not_present_words))
-
-        not_present_words, not_present_vectors = self.get_not_present_word_vectors(not_present_words=not_present_words,
-                                                                                   word_vector_size=word_vector_size,
-                                                                                   normalize=normalize)
-        words, self.vectors = zip(*[(word, vec) for word, vec in zip(words, self.vectors) if word in needed_words])
-        words = list(words) + not_present_words
-        self.vectors = list(self.vectors) + not_present_vectors
-
-        print('Initializing word mappings...')
-        self.word_to_id  = {word: i   for i, word   in enumerate(words)}
-        self.vectors = np.array(self.vectors, copy=False)
-
-        assert len(self.word_to_id) == len(self.vectors)
-        print(len(self.word_to_id), 'words in total are now initialized!')
-
-    def init_chars(self, words):
-        """
-        Init char -> id mapping
-        """
-        chars = set()
-        for word in words:
-            chars = chars.union(set(word))
-
-        self.char_to_id = {char: i+1 for i, char in enumerate(chars)}
-        print('Chars:', chars)
-
-    def init_parts_of_speech(self, parts_of_speech):
-        self.part_of_speech_to_id = {part: i+1 for i, part in enumerate(parts_of_speech)}
-        print('Parts of speech:', parts_of_speech)
-
-    def save_word_vectors(self, file_path):
-        np.save(file_path, self.vectors)
-
-    def save_mappings(self, word_mapping_file, char_mapping_file, part_of_speech_mapping_file):
-        with open(word_mapping_file, 'w') as f:             json.dump(self.word_to_id, f)
-        with open(char_mapping_file, 'w') as f:             json.dump(self.char_to_id, f)
-        with open(part_of_speech_mapping_file, 'w') as f:   json.dump(self.part_of_speech_to_id, f)
-
-    def load_mappings(self, word_mapping_file, char_mapping_file, part_of_speech_mapping_file):
-        with open(word_mapping_file, 'r') as f:             self.word_to_id = json.load(f)
-        with open(char_mapping_file, 'r') as f:             self.char_to_id = json.load(f)
-        with open(part_of_speech_mapping_file, 'r') as f:   self.part_of_speech_to_id = json.load(f)
-        self.unique_words = self.word_to_id.keys()
-        self.unique_parts_of_speech = self.part_of_speech_to_id.keys()
+        return all_words, all_parts_of_speech
 
     def get_label(self, sample):
         return NotImplementedError
@@ -205,16 +88,16 @@ class BasePreprocessor(object):
     def parse_sentence(self, sentence, max_words, chars_per_word):
         # Words
         words, parts_of_speech = self.get_words_with_part_of_speech(sentence)
-        word_ids = [self.word_to_id[word] if word in self.word_to_id else 777 for word in words]
+        word_ids = [self.word_mapping[word] for word in words]
 
         # Syntactical features
-        syntactical_features = [self.part_of_speech_to_id[part] for part in parts_of_speech]
-        syntactical_one_hot = np.eye(len(self.part_of_speech_to_id) + 2)[syntactical_features]  # Convert to 1-hot
+        syntactical_features = [self.part_of_speech_mapping[part] for part in parts_of_speech]
+        syntactical_one_hot = np.eye(len(self.part_of_speech_mapping) + 2)[syntactical_features]  # Convert to 1-hot
 
         # Chars
-        chars = [[self.char_to_id[c] if c in self.char_to_id else 7 for c in word] for word in words]
+        chars = [[self.char_mapping[c] for c in word] for word in words]
         chars = pad_sequences(chars, maxlen=chars_per_word, padding='post', truncating='post')
-        
+
         return (words, parts_of_speech, np.array(word_ids, copy=False),
                 syntactical_features, pad(syntactical_one_hot, max_words),
                 pad(chars, max_words))
@@ -245,7 +128,7 @@ class BasePreprocessor(object):
             target_words = set(target_words)
 
             res = [(word in target_words) for word in source_words]
-            return np.array(res, copy=False)
+            return np.array(res)
 
         premise_exact_match    = calculate_exact_match(premise_words, hypothesis_words)
         hypothesis_exact_match = calculate_exact_match(hypothesis_words, premise_words)
@@ -278,11 +161,9 @@ class BasePreprocessor(object):
         res = [[], [], [], [], [], [], [], [], []]
 
         for sample in tqdm(data):
-            # As stated in paper: The labels are "entailment", "neutral", "contradiction" and "-".
-            # "-"  shows that annotators can't reach consensus with each other, thus removed during training and testing
-            label = self.get_label(sample=sample)
-            if label == '-':
+            if self.skip_sample(sample=sample):
                 continue
+            label = self.get_label(sample=sample)
             premise, hypothesis = self.get_sentences(sample=sample)
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=max_words_h, max_words_p=max_words_p,
@@ -314,30 +195,19 @@ class BasePreprocessor(object):
                           include_syntactical_features=include_syntactical_features,
                           include_exact_match=include_exact_match)
 
-
-class SNLIPreprocessor(BasePreprocessor):
-    def get_words_with_part_of_speech(self, sentence):
-        parts = sentence.split('(')
-        words = []
-        parts_of_speech = []
-        for p in parts:
-            if ')' in p:
-                res = p.split(' ')
-                parts_of_speech.append(res[0])
-                words.append(res[1].replace(')', ''))
-        return words, parts_of_speech
-
-    def get_sentences(self, sample):
-        return sample['sentence1_parse'], sample['sentence2_parse']
-
-    def get_label(self, sample):
-        return sample['gold_label']
-
-    def get_labels(self):
-        return 'entailment', 'contradiction', 'neutral'
+    def skip_sample(self, sample):
+        label = self.get_label(sample=sample)
+        if label in self.omit_labels:
+            return True
+        return False
 
 
 class BioNLPPreprocessor(BasePreprocessor):
+
+    def __init__(self, omit_interactions=None):
+        self.omit_interactions = omit_interactions if omit_interactions is not None else set()
+        super(BioNLPPreprocessor, self).__init__()
+
     @staticmethod
     def load_data(file_path):
         with open(file_path) as f:
@@ -361,33 +231,41 @@ class BioNLPPreprocessor(BasePreprocessor):
     def get_labels(self):
         return 0, 1
 
+    def skip_sample(self, sample):
+        interaction_tuple = sample['interaction_tuple']
+        interaction_type = interaction_tuple[0]
+        if interaction_type in self.omit_interactions:
+            return True
+        return False
 
-def preprocess(p, h, chars_per_word, preprocessor, save_dir, data_paths, mappings_dir,
-               word_vector_save_path, normalize_word_vectors, max_loaded_word_vectors=None, word_vectors_load_path=None,
+
+def preprocess(p, h, chars_per_word, preprocessor, save_dir, data_paths, processor_save_path,
+               normalize_word_vectors, max_loaded_word_vectors=None, word_vectors_load_path=None,
                include_word_vectors=True, include_chars=True,
                include_syntactical_features=True, include_exact_match=True):
 
-    preprocessor.get_all_words_with_parts_of_speech([data_path[1] for data_path in data_paths])
-    print('Found', len(preprocessor.unique_words), 'unique words')
-    print('Found', len(preprocessor.unique_parts_of_speech), 'unique parts of speech')
+    all_words, all_parts_of_speech = preprocessor.get_all_words_with_parts_of_speech([data_path[1] for data_path in data_paths])
 
-    # Init mappings of the preprocessor
-    preprocessor.init_word_to_vectors(vectors_file_path=get_word2vec_file_path(word_vectors_load_path),
-                                      needed_words=preprocessor.unique_words,
-                                      normalize=normalize_word_vectors,
-                                      max_loaded_word_vectors=max_loaded_word_vectors)
-    preprocessor.init_chars(words=preprocessor.unique_words)
-    preprocessor.init_parts_of_speech(parts_of_speech=preprocessor.unique_parts_of_speech)
+    ''' Mappings '''
+    word_mapping = WordVectors()
+    word_mapping.load(file_path=get_word2vec_file_path(word_vectors_load_path),
+                      needed_words=set(all_words),
+                      normalize=normalize_word_vectors,
+                      max_words=max_loaded_word_vectors)
 
-    # Save mappings
-    if not os.path.exists(mappings_dir):
-        os.mkdir(mappings_dir)
-    preprocessor.save_mappings(word_mapping_file=os.path.join(mappings_dir, 'word_to_id.json'),
-                               char_mapping_file=os.path.join(mappings_dir, 'car_to_id.json'),
-                               part_of_speech_mapping_file=os.path.join(mappings_dir, 'part_of_speech_to_id.json'))
+    char_mapping = CharToIdMapping(set(all_words))
+    part_of_speech_mapping = KeyToIdMapping(keys=set(all_parts_of_speech))
 
-    # Process and save the data
-    preprocessor.save_word_vectors(word_vector_save_path)
+    ''' Initialize preprocessor mappings '''
+    preprocessor.word_mapping = word_mapping
+    preprocessor.char_mapping = char_mapping
+    preprocessor.part_of_speech_mapping = part_of_speech_mapping
+
+    if processor_save_path is not None:
+        with open(processor_save_path, 'wb') as f:
+            pickle.dump(preprocessor, file=f)
+
+    ''' Process and save the data '''
     for dataset, input_path in data_paths:
         data = preprocessor.parse_file(input_file_path=input_path,
                                        max_words_p=p,
@@ -402,7 +280,7 @@ def preprocess(p, h, chars_per_word, preprocessor, save_dir, data_paths, mapping
         data_saver.save(data)
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--p',              default=32,         help='Maximum words in premise',            type=int)
     parser.add_argument('--h',              default=4,          help='Maximum words in hypothesis',         type=int)
@@ -411,8 +289,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir',       default='data/',    help='Save directory of data',              type=str)
     parser.add_argument('--dataset',        default='bionlp',   help='Which preprocessor to use',           type=str)
     parser.add_argument('--word_vec_load_path', default=None,   help='Path to load word vectors',           type=str)
-    parser.add_argument('--word_vec_save_path', default='data/word-vectors.npy', help='Path to save vectors', type=str)
-    parser.add_argument('--mappings_dir',   default='mappings', help='Path to mappings',                    type=str)
+    parser.add_argument('--processor_save_path',    default='data/processor.pkl', help='Path to save vectors', type=str)
     parser.add_argument('--normalize_word_vectors',      action='store_true')
     parser.add_argument('--omit_word_vectors',           action='store_true')
     parser.add_argument('--omit_chars',                  action='store_true')
@@ -421,25 +298,28 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.dataset == 'bionlp':
-        snli_preprocessor = BioNLPPreprocessor()
+        preprocessor = BioNLPPreprocessor()
         # path = get_snli_file_path()
         path = './data'
         train_path = os.path.join(path, 'bionlp_train_data.json')
         test_path  = os.path.join(path, 'bionlp_test_data.json')
         dev_path   = os.path.join(path, 'bionlp_valid_data.json')
-
-        preprocess(p=args.p, h=args.h, chars_per_word=args.chars_per_word,
-                   preprocessor=snli_preprocessor,
-                   save_dir=args.save_dir,
-                   data_paths=[('train', train_path), ('test', test_path), ('dev', dev_path)],
-                   mappings_dir=args.mappings_dir,
-                   word_vectors_load_path=args.word_vec_load_path,
-                   normalize_word_vectors=args.normalize_word_vectors,
-                   word_vector_save_path=args.word_vec_save_path,
-                   max_loaded_word_vectors=args.max_word_vecs,
-                   include_word_vectors=not args.omit_word_vectors,
-                   include_chars=not args.omit_chars,
-                   include_syntactical_features=not args.omit_syntactical_features,
-                   include_exact_match=not args.omit_exact_match)
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
+
+    preprocess(p=args.p, h=args.h, chars_per_word=args.chars_per_word,
+               preprocessor=preprocessor,
+               save_dir=args.save_dir,
+               data_paths=[('train', train_path), ('test', test_path), ('dev', dev_path)],
+               word_vectors_load_path=args.word_vec_load_path,
+               normalize_word_vectors=args.normalize_word_vectors,
+               processor_save_path=args.processor_save_path,
+               max_loaded_word_vectors=args.max_word_vecs,
+               include_word_vectors=not args.omit_word_vectors,
+               include_chars=not args.omit_chars,
+               include_syntactical_features=not args.omit_syntactical_features,
+               include_exact_match=not args.omit_exact_match)
+
+
+if __name__ == '__main__':
+    main()

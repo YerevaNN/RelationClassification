@@ -13,6 +13,9 @@ from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
 from util import ChunkDataManager
+from preprocess import BioNLPPreprocessor
+try:                import cPickle as pickle
+except ImportError: import _pickle as pickle
 
 
 class Gym(object):
@@ -148,7 +151,7 @@ def main():
     parser.add_argument('--load_dir',                    default='data',    help='Directory of the data',   type=str)
     parser.add_argument('--models_dir',                  default='models/', help='Where to save models',    type=str)
     parser.add_argument('--logdir',                      default='logs',    help='Tensorboard logs dir',    type=str)
-    parser.add_argument('--word_vec_path', default='data/word-vectors.npy', help='Save path word vectors',  type=str)
+    parser.add_argument('--processor_path',              default='data/processor.pkl', help='Data processor',  type=str)
     parser.add_argument('--omit_word_vectors',           action='store_true')
     parser.add_argument('--omit_chars',                  action='store_true')
     parser.add_argument('--omit_syntactical_features',   action='store_true')
@@ -157,7 +160,8 @@ def main():
     args = parser.parse_args()
 
     ''' Prepare data '''
-    word_embedding_weights = np.load(args.word_vec_path)
+    with open(args.processor_path, 'rb') as f:
+        preprocessor = pickle.load(f)
     train_data = ChunkDataManager(load_data_path=os.path.join(args.load_dir, 'train')).load()
     test_data  = ChunkDataManager(load_data_path=os.path.join(args.load_dir, 'test')).load()
     dev_data   = ChunkDataManager(load_data_path=os.path.join(args.load_dir, 'dev')).load()
@@ -174,7 +178,7 @@ def main():
     model = Classifier(p=None,  # or train_data[0].shape[-1]
                        h=None,  # or train_data[1].shape[-1]
                        include_word_vectors=not args.omit_word_vectors,
-                       word_embedding_weights=word_embedding_weights,
+                       word_embedding_weights=preprocessor.word_mapping.vectors,
                        train_word_embeddings=args.train_word_embeddings,
                        include_chars=not args.omit_chars,
                        chars_per_word=chars_per_word,
