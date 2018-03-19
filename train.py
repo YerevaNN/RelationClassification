@@ -47,9 +47,7 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
           omit_word_vectors=False, omit_chars=False, omit_syntactical_features=False, omit_exact_match=False):
-    """
-    Train the model
-    """
+    """ Train the model """
     pprint(locals())
     
     ''' Prepare data '''
@@ -135,7 +133,7 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=3)],
+                                   EarlyStopping(patience=5)],
                         class_weight=class_weights)
 
 
