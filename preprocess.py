@@ -24,11 +24,23 @@ def pad(x, max_len):
 
 
 class BasePreprocessor(object):
-    def __init__(self, word_mapping=None, char_mapping=None, part_of_speech_mapping=None, omit_labels=None):
+    def __init__(self, word_mapping=None, char_mapping=None, part_of_speech_mapping=None, omit_labels=None,
+                 max_words_p=33, max_words_h=20, chars_per_word=13,
+                 include_word_vectors=True, include_chars=True,
+                 include_syntactical_features=True, include_exact_match=True):
         self.word_mapping = word_mapping
         self.char_mapping = char_mapping
         self.part_of_speech_mapping = part_of_speech_mapping
         self.omit_labels = omit_labels if omit_labels is not None else set()
+
+        self.max_words_p = max_words_p
+        self.max_words_h = max_words_h
+        self.chars_per_word = chars_per_word
+
+        self.include_word_vectors = include_word_vectors
+        self.include_chars = include_chars
+        self.include_syntactical_features = include_syntactical_features
+        self.include_exact_match = include_exact_match
 
     @staticmethod
     def load_data(file_path):
@@ -138,19 +150,9 @@ class BasePreprocessor(object):
                 premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
                 premise_exact_match, hypothesis_exact_match)
 
-    def parse(self, data, max_words_p=33, max_words_h=20, chars_per_word=13,
-              include_word_vectors=True, include_chars=True,
-              include_syntactical_features=True, include_exact_match=True):
+    def parse(self, data):
         """
         :param data: data to parse
-        :param max_words_p: maximum number of words in premise
-        :param max_words_h: maximum number of words in hypothesis
-        :param chars_per_word: number of chars in each word (padding is applied if not enough)
-        :param include_exact_match: weather to include exact match feature or not
-        :param include_syntactical_features: weather to include syntactical features or not
-        :param include_chars: weather to include char-level feature or not
-        :param include_word_vectors: weather to include word-vectors or not
-
         :return: (premise_word_ids, hypothesis_word_ids,
                   premise_chars, hypothesis_chars,
                   premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
@@ -160,40 +162,35 @@ class BasePreprocessor(object):
         # premise_syntactical_one_hot, hypothesis_syntactical_one_hot, premise_exact_match, hypothesis_exact_match]
         res = [[], [], [], [], [], [], [], [], []]
 
-        for sample in tqdm(data):
+        for sample in data:
             if self.skip_sample(sample=sample):
                 continue
             label = self.get_label(sample=sample)
             premise, hypothesis = self.get_sentences(sample=sample)
             sample_inputs = self.parse_one(premise, hypothesis,
-                                           max_words_h=max_words_h, max_words_p=max_words_p,
-                                           chars_per_word=chars_per_word)
+                                           max_words_h=self.max_words_h, max_words_p=self.max_words_p,
+                                           chars_per_word=self.chars_per_word)
             label = self.label_to_one_hot(label=label)
 
             sample_result = list(sample_inputs) + [label]
             for res_item, parsed_item in zip(res, sample_result):
                 res_item.append(parsed_item)
 
-        res[0] = pad_sequences(res[0], maxlen=max_words_p, padding='post', truncating='post', value=0.)  # input_word_p
-        res[1] = pad_sequences(res[1], maxlen=max_words_h, padding='post', truncating='post', value=0.)  # input_word_h
-        res[6] = pad_sequences(res[6], maxlen=max_words_p, padding='post', truncating='post', value=0.)  # exact_match_p
-        res[7] = pad_sequences(res[7], maxlen=max_words_h, padding='post', truncating='post', value=0.)  # exact_match_h
+        res[0] = pad_sequences(res[0], maxlen=self.max_words_p, padding='post', truncating='post', value=0.)  # input_word_p
+        res[1] = pad_sequences(res[1], maxlen=self.max_words_h, padding='post', truncating='post', value=0.)  # input_word_h
+        res[6] = pad_sequences(res[6], maxlen=self.max_words_p, padding='post', truncating='post', value=0.)  # exact_match_p
+        res[7] = pad_sequences(res[7], maxlen=self.max_words_h, padding='post', truncating='post', value=0.)  # exact_match_h
 
         # Determine which part of data we need to dump
-        if not include_exact_match:             del res[6:8]  # Exact match feature
-        if not include_syntactical_features:    del res[4:6]  # Syntactical POS tags
-        if not include_chars:                   del res[2:4]  # Character features
-        if not include_word_vectors:            del res[0:2]  # Word vectors
+        if not self.include_exact_match:             del res[6:8]  # Exact match feature
+        if not self.include_syntactical_features:    del res[4:6]  # Syntactical POS tags
+        if not self.include_chars:                   del res[2:4]  # Character features
+        if not self.include_word_vectors:            del res[0:2]  # Word vectors
         return [np.array(item) for item in res]
 
-    def parse_file(self, input_file_path, max_words_p=33, max_words_h=20, chars_per_word=13,
-                   include_word_vectors=True, include_chars=True,
-                   include_syntactical_features=True, include_exact_match=True):
+    def parse_file(self, input_file_path):
         data = self.load_data(input_file_path)
-        return self.parse(data=data, max_words_p=max_words_p, max_words_h=max_words_h, chars_per_word=chars_per_word,
-                          include_word_vectors=include_word_vectors, include_chars=include_chars,
-                          include_syntactical_features=include_syntactical_features,
-                          include_exact_match=include_exact_match)
+        return self.parse(data=data)
 
     def skip_sample(self, sample):
         label = self.get_label(sample=sample)
@@ -204,9 +201,9 @@ class BasePreprocessor(object):
 
 class BioNLPPreprocessor(BasePreprocessor):
 
-    def __init__(self, omit_interactions=None):
+    def __init__(self, omit_interactions=None, **kwargs):
         self.omit_interactions = omit_interactions if omit_interactions is not None else set()
-        super(BioNLPPreprocessor, self).__init__()
+        super(BioNLPPreprocessor, self).__init__(**kwargs)
 
     @staticmethod
     def load_data(file_path):
@@ -239,10 +236,8 @@ class BioNLPPreprocessor(BasePreprocessor):
         return False
 
 
-def preprocess(p, h, chars_per_word, preprocessor, save_dir, data_paths, processor_save_path,
-               normalize_word_vectors, max_loaded_word_vectors=None, word_vectors_load_path=None,
-               include_word_vectors=True, include_chars=True,
-               include_syntactical_features=True, include_exact_match=True):
+def preprocess(preprocessor, save_dir, data_paths, processor_save_path,
+               normalize_word_vectors, max_loaded_word_vectors=None, word_vectors_load_path=None):
 
     all_words, all_parts_of_speech = preprocessor.get_all_words_with_parts_of_speech([data_path[1] for data_path in data_paths])
 
@@ -267,15 +262,7 @@ def preprocess(p, h, chars_per_word, preprocessor, save_dir, data_paths, process
 
     ''' Process and save the data '''
     for dataset, input_path in data_paths:
-        data = preprocessor.parse_file(input_file_path=input_path,
-                                       max_words_p=p,
-                                       max_words_h=h,
-                                       chars_per_word=chars_per_word,
-                                       include_word_vectors=include_word_vectors,
-                                       include_chars=include_chars,
-                                       include_syntactical_features=include_syntactical_features,
-                                       include_exact_match=include_exact_match)
-
+        data = preprocessor.parse_file(input_file_path=input_path)
         data_saver = ChunkDataManager(save_data_path=os.path.join(save_dir, dataset))
         data_saver.save(data)
 
@@ -298,7 +285,13 @@ def main():
     args = parser.parse_args()
 
     if args.dataset == 'bionlp':
-        preprocessor = BioNLPPreprocessor()
+        preprocessor = BioNLPPreprocessor(max_words_p=args.p,
+                                          max_words_h=args.h,
+                                          chars_per_word=args.chars_per_word,
+                                          include_word_vectors=not args.omit_word_vectors,
+                                          include_chars=not args.omit_chars,
+                                          include_syntactical_features=not args.omit_syntactical_features,
+                                          include_exact_match=not args.omit_exact_match)
         # path = get_snli_file_path()
         path = './data'
         train_path = os.path.join(path, 'bionlp_train_data.json')
@@ -307,18 +300,13 @@ def main():
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
 
-    preprocess(p=args.p, h=args.h, chars_per_word=args.chars_per_word,
-               preprocessor=preprocessor,
+    preprocess(preprocessor=preprocessor,
                save_dir=args.save_dir,
                data_paths=[('train', train_path), ('test', test_path), ('dev', dev_path)],
                word_vectors_load_path=args.word_vec_load_path,
                normalize_word_vectors=args.normalize_word_vectors,
                processor_save_path=args.processor_save_path,
-               max_loaded_word_vectors=args.max_word_vecs,
-               include_word_vectors=not args.omit_word_vectors,
-               include_chars=not args.omit_chars,
-               include_syntactical_features=not args.omit_syntactical_features,
-               include_exact_match=not args.omit_exact_match)
+               max_loaded_word_vectors=args.max_word_vecs)
 
 
 if __name__ == '__main__':

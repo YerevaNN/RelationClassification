@@ -1,3 +1,4 @@
+fire
 scikit-learn
 nltk
 tqdm
