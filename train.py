@@ -1,7 +1,10 @@
 from __future__ import print_function
+from __future__ import division
 
 import os
 import random
+from pprint import pprint
+
 import fire
 
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
@@ -10,7 +13,7 @@ from keras.optimizers import Adam
 from data.mapping.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
-from util import get_word2vec_file_path
+from util import get_word2vec_file_path, AllMetrics
 from preprocess import BioNLPPreprocessor
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
@@ -34,7 +37,7 @@ def data_generator(samples, processor, batch_size, shuffle=True):
         yield inputs, labels
 
 
-def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_steps=200,
+def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_interaction=None,
           chars_per_word=18, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
@@ -46,6 +49,7 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_steps=
     """
     Train the model
     """
+    pprint(locals())
     
     ''' Prepare data '''
     if dataset == 'bionlp':
@@ -86,9 +90,11 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_steps=
     valid_processor.word_mapping = train_processor.word_mapping = word_mapping
     valid_processor.char_mapping = train_processor.char_mapping = char_mapping
     valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
-    valid_processor.omit_interactions = {'bind'}
+    if valid_omit_interaction is not None:
+        valid_processor.omit_interactions = {valid_omit_interaction}
 
     if processor_path is not None:
+        print('Saving processor...', end=' ')
         with open(processor_path, 'wb') as f:
             pickle.dump(train_processor, file=f)
 
@@ -111,17 +117,19 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_steps=
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
 
-    ''' Initialize Gym for training '''
-    model.fit_generator(generator=data_generator(samples=train_processor.load_data(train_path), processor=train_processor,
-                                                 batch_size=batch_size),
+    ''' Initialize training '''
+    print('Loading data...')
+    train_samples = train_processor.load_data(train_path)
+    valid_samples = valid_processor.load_data(dev_path)
+    model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
+                        validation_data=data_generator(samples=valid_samples, processor=valid_processor, batch_size=batch_size),
                         steps_per_epoch=steps_per_epoch,
-                        validation_data=data_generator(samples=train_processor.load_data(dev_path), processor=valid_processor,
-                                                       batch_size=batch_size),
-                        validation_steps=valid_steps,
+                        validation_steps=len(valid_samples) // batch_size,
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=3)])
+                                   EarlyStopping(patience=3),
+                                   AllMetrics()])
 
 
 if __name__ == '__main__':

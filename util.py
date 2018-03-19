@@ -5,7 +5,9 @@ from os import path
 
 import numpy as np
 from keras import backend as K
+from keras.callbacks import Callback
 from keras.utils import get_file
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
 
@@ -77,3 +79,20 @@ def broadcast_last_axis(x):
     y = K.expand_dims(x, 1) * 0
     y = K.permute_dimensions(y, (0, 1, 3, 2))
     return y + K.expand_dims(x)
+
+
+class AllMetrics(Callback):
+    def on_epoch_end(self, batch, logs=None):
+        predictions = self.model.predict(batch[:-1])
+        t, p = np.argmax(batch[-1], axis=1), np.argmax(predictions, axis=1)
+
+        # predictions = self.model.predict(self.validation_data[:-1])
+        # t, p = np.argmax(self.validation_data[-1], axis=1), np.argmax(predictions, axis=1)
+        self.confusion_matrix = confusion_matrix(t, p)
+        self.precision = precision_score(t, p)
+        self.recall = recall_score(t, p)
+        self.f1 = f1_score(t, p)
+        print(self.confusion_matrix)
+        print("Precision: {:.4f}".format(self.precision))
+        print("Recall: {:.4f}".format(self.recall))
+        print("F-score: {:.4f}".format(self.f1))
