@@ -3,7 +3,7 @@ mappings/*
 .idea/
 lib/*
 data/*
-!data/mapping/
+!data/__init__.py
 !data/mappings.py
 logs/*
 
