@@ -38,8 +38,8 @@ def data_generator(samples, processor, batch_size, shuffle=True):
         yield inputs, labels
 
 
-def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_interaction=None,
-          chars_per_word=18, char_embed_size=8,
+def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_interaction=None,
+          chars_per_word=20, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
           load_dir='data', models_dir='models', log_dir='logs',
@@ -52,16 +52,12 @@ def train(batch_size=80, p=22, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
     
     ''' Prepare data '''
     if dataset == 'bionlp':
-        train_processor = BioNLPPreprocessor(max_words_p=p,
-                                             max_words_h=h,
-                                             chars_per_word=chars_per_word,
+        train_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
                                              include_exact_match=not omit_exact_match)
-        valid_processor = BioNLPPreprocessor(max_words_p=p,
-                                             max_words_h=h,
-                                             chars_per_word=chars_per_word,
+        valid_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,

@@ -1,10 +1,9 @@
 from keras import Model
+from keras import backend as K
 from keras.engine import InputLayer
-from keras.layers import Input, Dense, Embedding, Conv1D, GlobalMaxPooling1D, Concatenate, Reshape, GRU, Lambda
+from keras.layers import Input, Dense, Embedding, Concatenate, GRU, Lambda, Masking
 from keras.layers.wrappers import Bidirectional, TimeDistributed
 from keras.models import Sequential
-
-from keras import backend as K
 
 from layers.decaying_dropout import DecayingDropout
 
@@ -14,13 +13,11 @@ class Classifier(Model):
                  p=None, h=None,
                  include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                  include_chars=True, chars_per_word=16, char_embedding_size=8,
-                 char_conv_filters=100, char_conv_kernel_size=5,
                  include_syntactical_features=True, syntactical_feature_size=50,
                  include_exact_match=True,
                  dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
-                 first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
-                 layers_per_dense_block=8, nb_dense_blocks=3, nb_labels=3,
-                 inputs=None, outputs=None, name='DIIN'):
+                 nb_labels=3,
+                 inputs=None, outputs=None, name='RelationClassifier'):
         """
         :ref https://openreview.net/forum?id=r1dHXnH6-&noteId=r1dHXnH6-
 
@@ -32,19 +29,12 @@ class Classifier(Model):
         :param include_chars: whether or not to include character embeddings in the model
         :param chars_per_word: how many chars are there per one word (a fixed number)
         :param char_embedding_size: input size of the character-embedding layer
-        :param char_conv_filters: number of conv-filters applied on character embedding
-        :param char_conv_kernel_size: size of the kernel applied on character embeddings
         :param include_syntactical_features: whether or not to include syntactical features (POS tags) in the model
         :param syntactical_feature_size: size of the syntactical feature vector for each word
         :param include_exact_match: whether or not to include exact match features in the model
         :param dropout_initial_keep_rate: initial state of dropout
         :param dropout_decay_rate: how much to change dropout at each interval
         :param dropout_decay_interval: how much time to wait for the next update
-        :param first_scale_down_ratio: first scale down ratio in densenet
-        :param transition_scale_down_ratio: transition scale down ratio in densenet
-        :param growth_rate: growing rate in densenet
-        :param layers_per_dense_block: number of layers in one dense-block
-        :param nb_dense_blocks: number of dense blocks in densenet
         :param nb_labels: number of labels (3 labels by default: entailment, contradiction, neutral)
         """
 
@@ -95,7 +85,7 @@ class Classifier(Model):
             # Share weights of character-level embedding for premise and hypothesis
             character_embedding_layer = TimeDistributed(Sequential([
                 InputLayer(input_shape=(chars_per_word,)),
-                Embedding(input_dim=100, output_dim=char_embedding_size, input_length=chars_per_word),
+                Embedding(input_dim=100, output_dim=char_embedding_size, input_length=chars_per_word, mask_zero=True),
                 # Conv1D(filters=char_conv_filters, kernel_size=char_conv_kernel_size),
                 # GlobalMaxPooling1D()
                 Bidirectional(GRU(units=24))
@@ -131,6 +121,8 @@ class Classifier(Model):
         # Concatenate all features
         premise_embedding    = Concatenate(name='PremiseEmbedding')(premise_embeddings)
         hypothesis_embedding = Concatenate(name='HypothesisEmbedding')(hypothesis_embeddings)
+        premise_embedding    = Masking()(premise_embedding)
+        hypothesis_embedding = Masking()(hypothesis_embedding)
 
         '''Encoding layer'''
         # Now we have the embedded premise [pxd] along with embedded hypothesis [hxd]
