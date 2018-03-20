@@ -14,8 +14,8 @@ from keras.optimizers import Adam
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
-from preprocess import BioNLPPreprocessor
-from util import get_word2vec_file_path, precision, recall, f1
+from data.preprocess import BioNLPPreprocessor
+from util import get_word2vec_file_path, AllMetrics
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -42,8 +42,12 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           chars_per_word=20, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
-          load_dir='data', models_dir='models', log_dir='logs',
-          processor_path='data/processor.pkl',
+          models_dir='models', log_dir='logs',
+          train_path='data/bionlp_train_data.json',
+          valid_path='data/bionlp_valid_data.json',
+          test_path='data/bionlp_test_data.json',
+          processor_load_path=None,
+          processor_save_path='data/processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
           omit_word_vectors=False, omit_chars=False, omit_syntactical_features=False, omit_exact_match=False):
@@ -61,35 +65,40 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
                                              include_exact_match=not omit_exact_match)
-
-        train_path = os.path.join(load_dir, 'bionlp_train_data.json')
-        test_path = os.path.join(load_dir, 'bionlp_test_data.json')
-        dev_path = os.path.join(load_dir, 'bionlp_valid_data.json')
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
 
-    all_words, all_parts_of_speech = train_processor.get_all_words_with_parts_of_speech([train_path, test_path, dev_path])
+    if processor_load_path is None:
+        all_words, all_parts_of_speech = train_processor.get_all_words_with_parts_of_speech([train_path, test_path, valid_path])
 
-    ''' Mappings '''
-    word_mapping = WordVectors()
-    word_mapping.load(file_path=get_word2vec_file_path(word_vec_load_path),
-                      needed_words=set(all_words),
-                      normalize=normalize_word_vectors,
-                      max_words=max_word_vecs)
+        ''' Mappings '''
+        word_mapping = WordVectors()
+        word_mapping.load(file_path=get_word2vec_file_path(word_vec_load_path),
+                          needed_words=set(all_words),
+                          normalize=normalize_word_vectors,
+                          max_words=max_word_vecs)
 
-    char_mapping = CharToIdMapping(set(all_words))
-    part_of_speech_mapping = KeyToIdMapping(keys=set(all_parts_of_speech))
+        char_mapping = CharToIdMapping(set(all_words))
+        part_of_speech_mapping = KeyToIdMapping(keys=set(all_parts_of_speech))
 
-    ''' Initialize preprocessor mappings '''
-    valid_processor.word_mapping = train_processor.word_mapping = word_mapping
-    valid_processor.char_mapping = train_processor.char_mapping = char_mapping
-    valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
-    if valid_omit_interaction is not None:
-        valid_processor.omit_interactions = {valid_omit_interaction}
+        ''' Initialize preprocessor mappings '''
+        valid_processor.word_mapping = train_processor.word_mapping = word_mapping
+        valid_processor.char_mapping = train_processor.char_mapping = char_mapping
+        valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
+        if valid_omit_interaction is not None:
+            valid_processor.omit_interactions = {valid_omit_interaction}
+    else:
+        with open(processor_load_path, 'rb') as f:
+            train_processor = pickle.load(file=f)
+        valid_processor.word_mapping = train_processor.word_mapping
+        valid_processor.char_mapping = train_processor.char_mapping
+        valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping
+        if valid_omit_interaction is not None:
+            valid_processor.omit_interactions = {valid_omit_interaction}
 
-    if processor_path is not None:
+    if processor_save_path is not None:
         print('Saving processor...')
-        with open(processor_path, 'wb') as f:
+        with open(processor_save_path, 'wb') as f:
             pickle.dump(train_processor, file=f)
 
     ''' Prepare the model and optimizers '''
@@ -109,12 +118,12 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                        dropout_decay_interval=dropout_decay_interval,
                        nb_labels=len(train_processor.get_labels()))
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['accuracy', precision, recall, f1])
+    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
 
     ''' Initialize training '''
     print('Loading data...')
     train_samples = train_processor.load_data(train_path)
-    valid_samples = valid_processor.load_data(dev_path)
+    valid_samples = valid_processor.load_data(valid_path)
     valid_data = valid_processor.parse(valid_samples, verbose=True)
 
     ''' Give weights to classes '''
@@ -124,16 +133,15 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
     print('Class weights: ', class_weights)
 
     # Create directory for saving models if its not present yet
-    if not os.path.exists(models_dir):
-        os.mkdir(models_dir)
-
+    os.makedirs(models_dir, exist_ok=True)
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
                         validation_data=(valid_data[:-1], valid_data[-1]),
                         steps_per_epoch=steps_per_epoch,
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=5)],
+                                   EarlyStopping(patience=5),
+                                   AllMetrics(valid_data[:-1], valid_data[-1])],
                         class_weight=class_weights)
 
 

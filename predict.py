@@ -8,7 +8,6 @@ from keras.models import load_model
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score
 from tqdm import tqdm
 
-from preprocess import BioNLPPreprocessor
 from layers.decaying_dropout import DecayingDropout
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer

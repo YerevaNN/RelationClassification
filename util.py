@@ -5,7 +5,9 @@ from os import path
 
 import numpy as np
 from keras import backend as K
+from keras.callbacks import Callback
 from keras.utils import get_file
+from sklearn.metrics import confusion_matrix, precision_score, recall_score, f1_score, accuracy_score
 from tqdm import tqdm
 
 
@@ -109,3 +111,25 @@ def f1(y_true, y_pred):
     p = precision(y_true, y_pred)
     r = recall(y_true, y_pred)
     return 2 * ((p * r) / (p + r))
+
+
+class AllMetrics(Callback):
+    def __init__(self, inputs, labels):
+        super(AllMetrics, self).__init__()
+        self.inputs = inputs
+        self.labels = labels
+
+    def on_epoch_end(self, batch, logs=None):
+        predictions = self.model.predict(self.inputs)
+        t, p = np.argmax(self.labels, axis=1), np.argmax(predictions, axis=1)
+
+        self.accuracy = accuracy_score(t, p)
+        self.confusion_matrix = confusion_matrix(t, p)
+        self.precision = precision_score(t, p)
+        self.recall = recall_score(t, p)
+        self.f1 = f1_score(t, p)
+        print(self.confusion_matrix)
+        print('Accuracy: {:.4f}'.format(self.accuracy))
+        print('Precision: {:.4f}'.format(self.precision))
+        print('Recall: {:.4f}'.format(self.recall))
+        print('F-score: {:.4f}'.format(self.f1))

@@ -3,8 +3,7 @@ mappings/*
 .idea/
 lib/*
 data/*
-!data/__init__.py
-!data/mappings.py
+!data/*.py
 logs/*
 
 # Created by .ignore support plugin (hsz.mobi)
