@@ -47,7 +47,6 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
           omit_word_vectors=False, omit_chars=False, omit_syntactical_features=False, omit_exact_match=False):
-    """ Train the model """
     pprint(locals())
     
     ''' Prepare data '''
@@ -116,16 +115,21 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
     print('Loading data...')
     train_samples = train_processor.load_data(train_path)
     valid_samples = valid_processor.load_data(dev_path)
+    valid_data = valid_processor.parse(valid_samples, verbose=True)
 
     ''' Give weights to classes '''
-    one = sum([train_processor.get_label(sample) for sample in train_samples])
-    two = len(train_samples) - one
-    class_weights = [len(train_samples) / (1. * one), len(train_samples) / (1. * two)]
+    zer = 1. * sum([train_processor.get_label(sample) == 0 for sample in train_samples])
+    one = 1. * sum([train_processor.get_label(sample) == 1 for sample in train_samples])
+    class_weights = [len(train_samples) / zer, len(train_samples) / one]
+    print('Class weights: ', class_weights)
+
+    # Create directory for saving models if its not present yet
+    if not os.path.exists(models_dir):
+        os.mkdir(models_dir)
 
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
-                        validation_data=data_generator(samples=valid_samples, processor=valid_processor, batch_size=batch_size),
+                        validation_data=(valid_data[:-1], valid_data[-1]),
                         steps_per_epoch=steps_per_epoch,
-                        validation_steps=len(valid_samples) // batch_size,
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),

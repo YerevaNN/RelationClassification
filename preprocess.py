@@ -150,9 +150,10 @@ class BasePreprocessor(object):
                 premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
                 premise_exact_match, hypothesis_exact_match)
 
-    def parse(self, data):
+    def parse(self, data, verbose=False):
         """
         :param data: data to parse
+        :param verbose: to show progress or not
         :return: (premise_word_ids, hypothesis_word_ids,
                   premise_chars, hypothesis_chars,
                   premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
@@ -162,7 +163,7 @@ class BasePreprocessor(object):
         # premise_syntactical_one_hot, hypothesis_syntactical_one_hot, premise_exact_match, hypothesis_exact_match]
         res = [[], [], [], [], [], [], [], [], []]
 
-        for sample in data:
+        for sample in tqdm(data) if verbose else data:
             if self.skip_sample(sample=sample):
                 continue
             label = self.get_label(sample=sample)
