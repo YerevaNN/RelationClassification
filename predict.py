@@ -11,7 +11,6 @@ from tqdm import tqdm
 from layers.decaying_dropout import DecayingDropout
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
-from util import precision, recall, f1
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -46,10 +45,7 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/proce
     if dataset == 'bionlp':
         model = load_model(model_path, custom_objects={'Classifier': Classifier,
                                                        'DecayingDropout': DecayingDropout,
-                                                       'L2Optimizer': L2Optimizer,
-                                                       'precision': precision,
-                                                       'recall': recall,
-                                                       'f1': f1})
+                                                       'L2Optimizer': L2Optimizer})
         with open(input_path, 'r') as f:        data = json.load(f)
         with open(processor_path, 'rb') as f:   preprocessor = pickle.load(f)
     else:
