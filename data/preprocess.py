@@ -178,6 +178,9 @@ class BasePreprocessor(object):
                 amr_path = self.get_amr_path(sample)
                 if amr_path != '':
                     hypothesis = amr_path
+                else:
+                    hypothesis = hypothesis.split(' ')
+                    hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
 
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
