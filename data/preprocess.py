@@ -27,7 +27,7 @@ class BasePreprocessor(object):
     def __init__(self, word_mapping=None, char_mapping=None, part_of_speech_mapping=None, omit_labels=None,
                  max_words_p=33, max_words_h=20, chars_per_word=13,
                  include_word_vectors=True, include_chars=True,
-                 include_syntactical_features=True, include_exact_match=True):
+                 include_syntactical_features=True, include_exact_match=True, include_amr_path=True):
         self.word_mapping = word_mapping
         self.char_mapping = char_mapping
         self.part_of_speech_mapping = part_of_speech_mapping
@@ -41,6 +41,7 @@ class BasePreprocessor(object):
         self.include_chars = include_chars
         self.include_syntactical_features = include_syntactical_features
         self.include_exact_match = include_exact_match
+        self.include_amr_path = include_amr_path
 
     @staticmethod
     def load_data(file_path):
@@ -89,6 +90,9 @@ class BasePreprocessor(object):
 
     def get_labels(self):
         raise NotImplementedError
+
+    def get_amr_path(self, sample):
+        return None
 
     def label_to_one_hot(self, label):
         label_set = self.get_labels()
@@ -168,6 +172,16 @@ class BasePreprocessor(object):
                 continue
             label = self.get_label(sample=sample)
             premise, hypothesis = self.get_sentences(sample=sample)
+
+            ''' Add AMR path to hypothesis '''
+            if self.include_amr_path:
+                amr_path = self.get_amr_path(sample)
+                if amr_path != '':
+                    hypothesis = amr_path
+                else:
+                    hypothesis = hypothesis.split(' ')
+                    hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
+
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
                                            chars_per_word=self.chars_per_word)
@@ -210,7 +224,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     def load_data(file_path):
         with open(file_path) as f:
             raw_data = json.load(f)
-        return raw_data
+        return list(raw_data.values())
 
     def get_words_with_part_of_speech(self, sentence):
         words = nltk.word_tokenize(sentence)
@@ -222,6 +236,9 @@ class BioNLPPreprocessor(BasePreprocessor):
         interaction_tuple = sample['interaction_tuple']
         interaction_tuple = [item for item in interaction_tuple if item is not None]
         return text, ' '.join(interaction_tuple)
+
+    def get_amr_path(self, sample):
+        return sample['amr_path']
 
     def get_label(self, sample):
         return sample['label']

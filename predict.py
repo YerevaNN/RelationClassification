@@ -49,7 +49,7 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/proce
         with open(input_path, 'r') as f:        data = json.load(f)
         with open(processor_path, 'rb') as f:   preprocessor = pickle.load(f)
     else:
-        raise ValueError('couldn\'t find implementation for specified dataset')
+        raise ValueError('Could not find implementation for specified dataset')
 
     predict(model=model,
             preprocessor=preprocessor,
