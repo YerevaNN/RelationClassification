@@ -50,7 +50,8 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           processor_save_path='data/processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
-          omit_word_vectors=False, omit_chars=False, omit_syntactical_features=False, omit_exact_match=False):
+          omit_word_vectors=False, omit_chars=False,
+          omit_amr_path=False, omit_syntactical_features=False, omit_exact_match=False):
     pprint(locals())
     
     ''' Prepare data '''
@@ -59,12 +60,14 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
-                                             include_exact_match=not omit_exact_match)
+                                             include_exact_match=not omit_exact_match,
+                                             include_amr_path=not omit_amr_path)
         valid_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
-                                             include_exact_match=not omit_exact_match)
+                                             include_exact_match=not omit_exact_match,
+                                             include_amr_path=not omit_amr_path)
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
 

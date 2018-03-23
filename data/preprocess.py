@@ -175,11 +175,9 @@ class BasePreprocessor(object):
 
             ''' Add AMR path to hypothesis '''
             if self.include_amr_path:
-                for amr_path in self.get_amr_path(sample):
-                    start_to_lca = amr_path[0]
-                    lca_to_end = amr_path[1][::-1]
-                    for item in start_to_lca:   hypothesis += ' ' + item[1] + ' ' + item[0]
-                    for item in lca_to_end:     hypothesis += ' ' + item[0] + ' ' + item[1]
+                amr_path = self.get_amr_path(sample)
+                if amr_path != '':
+                    hypothesis = amr_path
 
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
@@ -223,7 +221,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     def load_data(file_path):
         with open(file_path) as f:
             raw_data = json.load(f)
-        return raw_data
+        return list(raw_data.values())
 
     def get_words_with_part_of_speech(self, sentence):
         words = nltk.word_tokenize(sentence)
@@ -237,7 +235,7 @@ class BioNLPPreprocessor(BasePreprocessor):
         return text, ' '.join(interaction_tuple)
 
     def get_amr_path(self, sample):
-        return sample['amr_paths']
+        return sample['amr_path']
 
     def get_label(self, sample):
         return sample['label']
