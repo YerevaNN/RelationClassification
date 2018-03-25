@@ -46,8 +46,9 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/proce
         model = load_model(model_path, custom_objects={'Classifier': Classifier,
                                                        'DecayingDropout': DecayingDropout,
                                                        'L2Optimizer': L2Optimizer})
-        with open(input_path, 'r') as f:        data = json.load(f)
-        with open(processor_path, 'rb') as f:   preprocessor = pickle.load(f)
+        with open(processor_path, 'rb') as f:
+            preprocessor = pickle.load(f)
+        data = preprocessor.load_data(input_path)
     else:
         raise ValueError('Could not find implementation for specified dataset')
 
