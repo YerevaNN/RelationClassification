@@ -138,4 +138,4 @@ class AllMetrics(Callback):
 
 
 def get_git_hash():
-    return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']))
+    return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('utf-8')

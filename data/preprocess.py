@@ -217,7 +217,7 @@ class BasePreprocessor(object):
 class BioNLPPreprocessor(BasePreprocessor):
 
     def __init__(self, omit_interactions=None, **kwargs):
-        self.valid_interactions = omit_interactions if omit_interactions is not None else set()
+        self.valid_interactions = omit_interactions
         super(BioNLPPreprocessor, self).__init__(**kwargs)
 
     @staticmethod
@@ -249,7 +249,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     def skip_sample(self, sample):
         interaction_tuple = sample['interaction_tuple']
         interaction_type = interaction_tuple[0]
-        if interaction_type not in self.valid_interactions:
+        if self.valid_interactions is not None and interaction_type not in self.valid_interactions:
             return True
         return False
 
