@@ -63,7 +63,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     logs = locals()
     logs['commit'] = get_git_hash()
     with io.open(os.path.join(log_dir, 'info.json'), 'w', encoding='utf-8') as f:
-        json.dump(logs, f, indent=True)
+        f.write(json.dumps(logs, ensure_ascii=False, indent=True))
     pprint(locals())
     
     ''' Prepare data '''
