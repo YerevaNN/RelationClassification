@@ -136,7 +136,6 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
     # Create directory for saving models if its not present yet
     if not os.path.exists(models_dir):  os.mkdir(models_dir)
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
-                        validation_data=(valid_data[:-1], valid_data[-1]),
                         steps_per_epoch=steps_per_epoch,
                         epochs=epochs,
                         callbacks=[TensorBoard(log_dir=log_dir),

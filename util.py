@@ -119,7 +119,7 @@ class AllMetrics(Callback):
         self.inputs = inputs
         self.labels = labels
 
-    def on_epoch_end(self, batch, logs=None):
+    def on_epoch_end(self, epoch, logs=None):
         predictions = self.model.predict(self.inputs)
         t, p = np.argmax(self.labels, axis=1), np.argmax(predictions, axis=1)
 
@@ -128,7 +128,8 @@ class AllMetrics(Callback):
         self.precision = precision_score(t, p)
         self.recall = recall_score(t, p)
         self.f1 = f1_score(t, p)
-        print('\nConfusion Matrix:\n', self.confusion_matrix)
+        print('\nEvaluating for epoch {}...'.format(epoch))
+        print('Confusion Matrix:\n', self.confusion_matrix)
         print('Accuracy: {:.4f}'.format(self.accuracy))
         print('Precision: {:.4f}'.format(self.precision))
         print('Recall: {:.4f}'.format(self.recall))
