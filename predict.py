@@ -39,7 +39,7 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
         json.dump(data, f, indent=True)
 
 
-def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/processor.pkl',
+def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid_processor.pkl',
          input_path='data/bionlp_test_data.json', output_path='data/out_bionlp_test_data.json'):
 
     if dataset == 'bionlp':

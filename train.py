@@ -46,8 +46,8 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           train_path='data/bionlp_train_data.json',
           valid_path='data/bionlp_valid_data.json',
           test_path='data/bionlp_test_data.json',
-          processor_load_path=None,
-          processor_save_path='data/processor.pkl',
+          train_processor_load_path=None, train_processor_save_path='data/train_processor.pkl',
+          valid_processor_load_path=None, valid_processor_save_path='data/valid_processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
           omit_word_vectors=False, omit_chars=False,
@@ -71,7 +71,7 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
 
-    if processor_load_path is None:
+    if train_processor_load_path is None and valid_processor_load_path is None:
         all_words, all_parts_of_speech = train_processor.get_all_words_with_parts_of_speech([train_path, test_path, valid_path])
 
         ''' Mappings '''
@@ -90,19 +90,15 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
         valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
         if valid_omit_interaction is not None:
             valid_processor.omit_interactions = {valid_omit_interaction}
+    elif train_processor_load_path is not None and valid_processor_load_path is not None:
+        with open(train_processor_load_path, 'rb') as f:    train_processor = pickle.load(file=f)
+        with open(valid_processor_load_path, 'rb') as f:    valid_processor = pickle.load(file=f)
     else:
-        with open(processor_load_path, 'rb') as f:
-            train_processor = pickle.load(file=f)
-        valid_processor.word_mapping = train_processor.word_mapping
-        valid_processor.char_mapping = train_processor.char_mapping
-        valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping
-        if valid_omit_interaction is not None:
-            valid_processor.omit_interactions = {valid_omit_interaction}
+        raise ValueError('Both --train_processor_load_path and --valid_processor_load_path need to be provided, '
+                         'or both omitted')
 
-    if processor_save_path is not None:
-        print('Saving processor...')
-        with open(processor_save_path, 'wb') as f:
-            pickle.dump(train_processor, file=f)
+    with open(train_processor_save_path, 'wb') as f:    pickle.dump(train_processor, file=f)
+    with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f)
 
     ''' Prepare the model and optimizers '''
     model = Classifier(p=None,  # or p
