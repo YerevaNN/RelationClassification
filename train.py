@@ -4,6 +4,7 @@ from __future__ import absolute_import
 
 import json
 import os
+import io
 import random
 import fire
 
@@ -61,7 +62,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     if not os.path.exists(log_dir):     os.mkdir(log_dir)
     logs = locals()
     logs['commit'] = get_git_hash()
-    with open(os.path.join(log_dir, 'info.json'), 'w', encoding='utf-8') as f:
+    with io.open(os.path.join(log_dir, 'info.json'), 'w', encoding='utf-8') as f:
         json.dump(logs, f, indent=True)
     pprint(locals())
     
