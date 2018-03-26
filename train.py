@@ -38,7 +38,7 @@ def data_generator(samples, processor, batch_size, shuffle=True):
         yield inputs, labels
 
 
-def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_interaction=None,
+def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
           chars_per_word=20, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
@@ -50,6 +50,7 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
           valid_processor_load_path=None, valid_processor_save_path='data/valid_processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
           dataset='bionlp',
+          train_omit_interaction=None, valid_omit_interaction=None,
           omit_word_vectors=False, omit_chars=False,
           omit_amr_path=False, omit_syntactical_features=False, omit_exact_match=False):
     pprint(locals())
@@ -88,8 +89,9 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500, valid_omit_i
         valid_processor.word_mapping = train_processor.word_mapping = word_mapping
         valid_processor.char_mapping = train_processor.char_mapping = char_mapping
         valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
-        if valid_omit_interaction is not None:
-            valid_processor.omit_interactions = {valid_omit_interaction}
+        if train_omit_interaction is not None:  train_processor.omit_interactions = {train_omit_interaction}
+        if valid_omit_interaction is not None:  valid_processor.omit_interactions = {valid_omit_interaction}
+
     elif train_processor_load_path is not None and valid_processor_load_path is not None:
         with open(train_processor_load_path, 'rb') as f:    train_processor = pickle.load(file=f)
         with open(valid_processor_load_path, 'rb') as f:    valid_processor = pickle.load(file=f)
