@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import os
+import subprocess
 from os import path
 
 import numpy as np
@@ -134,3 +135,7 @@ class AllMetrics(Callback):
         print('Precision: {:.4f}'.format(self.precision))
         print('Recall: {:.4f}'.format(self.recall))
         print('F-score: {:.4f}'.format(self.f1))
+
+
+def get_git_hash():
+    return str(subprocess.check_output(['git', 'rev-parse', 'HEAD']))

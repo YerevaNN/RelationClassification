@@ -217,7 +217,7 @@ class BasePreprocessor(object):
 class BioNLPPreprocessor(BasePreprocessor):
 
     def __init__(self, omit_interactions=None, **kwargs):
-        self.omit_interactions = omit_interactions if omit_interactions is not None else set()
+        self.valid_interactions = omit_interactions if omit_interactions is not None else set()
         super(BioNLPPreprocessor, self).__init__(**kwargs)
 
     @staticmethod
@@ -227,7 +227,7 @@ class BioNLPPreprocessor(BasePreprocessor):
         return list(raw_data.values())
 
     def get_words_with_part_of_speech(self, sentence):
-        words = nltk.word_tokenize(sentence)
+        words = sentence.split()  # nltk.word_tokenize(sentence)
         parts_of_speech = ['X'] * len(words)
         return words, parts_of_speech
 
@@ -249,7 +249,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     def skip_sample(self, sample):
         interaction_tuple = sample['interaction_tuple']
         interaction_type = interaction_tuple[0]
-        if interaction_type in self.omit_interactions:
+        if interaction_type not in self.valid_interactions:
             return True
         return False
 

@@ -126,12 +126,12 @@ class Classifier(Model):
 
         '''Encoding layer'''
         # Now we have the embedded premise [pxd] along with embedded hypothesis [hxd]
-        premise_encoding    = Bidirectional(GRU(units=100, return_sequences=True))(premise_embedding)
-        hypothesis_encoding = Bidirectional(GRU(units=100, return_sequences=True))(hypothesis_embedding)
+        premise_encoding    = Bidirectional(GRU(units=64, return_sequences=True))(premise_embedding)
+        hypothesis_encoding = Bidirectional(GRU(units=64, return_sequences=True))(hypothesis_embedding)
 
         '''Interaction layer'''
         concat = Concatenate(axis=1)([premise_encoding, hypothesis_encoding])
-        interaction = Bidirectional(GRU(units=200))(concat)
+        interaction = Bidirectional(GRU(units=128))(concat)
 
         '''Output layer'''
         features = Dense(units=128, activation='tanh', name='features')(interaction)

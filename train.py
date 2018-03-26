@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import absolute_import
 
+import json
 import os
 import random
 import fire
@@ -15,7 +16,8 @@ from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
 from data.preprocess import BioNLPPreprocessor
-from util import get_word2vec_file_path, AllMetrics
+from util import get_word2vec_file_path, AllMetrics, get_git_hash
+
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -38,7 +40,7 @@ def data_generator(samples, processor, batch_size, shuffle=True):
         yield inputs, labels
 
 
-def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
+def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
           chars_per_word=20, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
@@ -48,11 +50,19 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
           test_path='data/bionlp_test_data.json',
           train_processor_load_path=None, train_processor_save_path='data/train_processor.pkl',
           valid_processor_load_path=None, valid_processor_save_path='data/valid_processor.pkl',
-          word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=True,
+          word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=False,
           dataset='bionlp',
-          train_omit_interaction=None, valid_omit_interaction=None,
+          train_interaction=None, valid_interaction=None,
           omit_word_vectors=False, omit_chars=False,
           omit_amr_path=False, omit_syntactical_features=False, omit_exact_match=False):
+
+    # Create directories if they are not present
+    if not os.path.exists(models_dir):  os.mkdir(models_dir)
+    if not os.path.exists(log_dir):     os.mkdir(log_dir)
+    logs = locals()
+    logs['commit'] = get_git_hash()
+    with open(os.path.join(log_dir, 'info.json'), 'w') as f:
+        json.dump(logs, f)
     pprint(locals())
     
     ''' Prepare data '''
@@ -89,8 +99,8 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
         valid_processor.word_mapping = train_processor.word_mapping = word_mapping
         valid_processor.char_mapping = train_processor.char_mapping = char_mapping
         valid_processor.part_of_speech_mapping = train_processor.part_of_speech_mapping = part_of_speech_mapping
-        if train_omit_interaction is not None:  train_processor.omit_interactions = {train_omit_interaction}
-        if valid_omit_interaction is not None:  valid_processor.omit_interactions = {valid_omit_interaction}
+        if train_interaction is not None:  train_processor.valid_interactions = {train_interaction}
+        if valid_interaction is not None:  valid_processor.valid_interactions = {valid_interaction}
 
     elif train_processor_load_path is not None and valid_processor_load_path is not None:
         with open(train_processor_load_path, 'rb') as f:    train_processor = pickle.load(file=f)
@@ -120,6 +130,7 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
                        nb_labels=len(train_processor.get_labels()))
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+    model.summary()
 
     ''' Initialize training '''
     print('Loading data...')
@@ -133,8 +144,6 @@ def train(batch_size=80, p=75, h=4, epochs=70, steps_per_epoch=500,
     class_weights = [len(train_samples) / zer, len(train_samples) / one]
     print('Class weights: ', class_weights)
 
-    # Create directory for saving models if its not present yet
-    if not os.path.exists(models_dir):  os.mkdir(models_dir)
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
                         steps_per_epoch=steps_per_epoch, epochs=epochs,
                         validation_data=(valid_data[:-1], valid_data[-1]),
