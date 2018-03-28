@@ -19,6 +19,7 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
 
     eval_predictions = []
     eval_labels = [preprocessor.get_label(sample) for sample in data]
+    data = [item for item in data if not preprocessor.skip_sample(item)]
     for batch_start in tqdm(range(0, len(data), batch_size)):
         batch = data[batch_start: batch_start + batch_size]
         data_input = preprocessor.parse(data=batch)
