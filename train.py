@@ -137,6 +137,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     print('Loading data...')
     train_samples = train_processor.load_data(train_path)
     valid_samples = valid_processor.load_data(valid_path)
+    train_samples = [sample for sample in train_samples if not train_processor.skip_sample(sample)]
+    valid_samples = [sample for sample in valid_samples if not valid_processor.skip_sample(sample)]
     valid_data = valid_processor.parse(valid_samples, verbose=True)
 
     ''' Give weights to classes '''
