@@ -41,14 +41,15 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
 
 
 def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid_processor.pkl',
-         input_path='data/bionlp_test_data.json', output_path='data/out_bionlp_test_data.json'):
+         input_path='data/bionlp_test_data.json', output_path='data/out_bionlp_test_data.json',
+         interaction=None):
 
     if dataset == 'bionlp':
         model = load_model(model_path, custom_objects={'Classifier': Classifier,
                                                        'DecayingDropout': DecayingDropout,
                                                        'L2Optimizer': L2Optimizer})
-        with open(processor_path, 'rb') as f:
-            preprocessor = pickle.load(f)
+        with open(processor_path, 'rb') as f:   preprocessor = pickle.load(f)
+        if interaction:                         preprocessor.valid_interactions = {interaction}
         data = preprocessor.load_data(input_path)
     else:
         raise ValueError('Could not find implementation for specified dataset')
