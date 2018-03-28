@@ -129,7 +129,7 @@ class AllMetrics(Callback):
         self.precision = precision_score(t, p)
         self.recall = recall_score(t, p)
         self.f1 = f1_score(t, p)
-        print('\nEvaluating for epoch {}...'.format(epoch))
+        print('\nEvaluating for epoch {}...'.format(epoch + 1))
         print('Confusion Matrix:\n', self.confusion_matrix)
         print('Accuracy: {:.4f}'.format(self.accuracy))
         print('Precision: {:.4f}'.format(self.precision))

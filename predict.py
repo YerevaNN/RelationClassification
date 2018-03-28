@@ -35,6 +35,7 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
     print('F score:', f1_score(eval_labels, eval_predictions))
     print('Accuracy:', accuracy_score(eval_labels, eval_predictions))
 
+    data = {item.pop('id'): item for item in data}
     with open(output_path, 'w') as f:
         json.dump(data, f, indent=True)
 

@@ -224,7 +224,11 @@ class BioNLPPreprocessor(BasePreprocessor):
     def load_data(file_path):
         with open(file_path) as f:
             raw_data = json.load(f)
-        return list(raw_data.values())
+        res = []
+        for key, value in raw_data.items():
+            value.update({'id': key})
+            res.append(value)
+        return res
 
     def get_words_with_part_of_speech(self, sentence):
         words = sentence.split()  # nltk.word_tokenize(sentence)
