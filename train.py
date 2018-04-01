@@ -54,8 +54,9 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=False,
           dataset='bionlp',
           train_interaction=None, valid_interaction=None,
+          omit_single_interaction=False, omit_amr_path=False,
           omit_word_vectors=False, omit_chars=False,
-          omit_amr_path=False, omit_syntactical_features=False, omit_exact_match=False):
+          omit_syntactical_features=False, omit_exact_match=False):
 
     # Create directories if they are not present
     if not os.path.exists(models_dir):  os.mkdir(models_dir)
@@ -64,7 +65,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     logs['commit'] = get_git_hash()
     with io.open(os.path.join(log_dir, 'info.json'), 'w', encoding='utf-8') as f:
         f.write(json.dumps(logs, ensure_ascii=False, indent=True))
-    pprint(locals())
+    pprint(logs)
     
     ''' Prepare data '''
     if dataset == 'bionlp':
@@ -73,13 +74,15 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
                                              include_exact_match=not omit_exact_match,
-                                             include_amr_path=not omit_amr_path)
+                                             include_amr_path=not omit_amr_path,
+                                             include_single_interaction=not omit_single_interaction)
         valid_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_syntactical_features=not omit_syntactical_features,
                                              include_exact_match=not omit_exact_match,
-                                             include_amr_path=not omit_amr_path)
+                                             include_amr_path=not omit_amr_path,
+                                             include_single_interaction=not omit_single_interaction)
     else:
         raise ValueError('couldn\'t find implementation for specified dataset')
 
