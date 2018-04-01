@@ -24,10 +24,12 @@ def pad(x, max_len):
 
 
 class BasePreprocessor(object):
-    def __init__(self, word_mapping=None, char_mapping=None, part_of_speech_mapping=None, omit_labels=None,
+    def __init__(self, word_mapping=None, char_mapping=None,
+                 part_of_speech_mapping=None, omit_labels=None,
                  max_words_p=33, max_words_h=20, chars_per_word=13,
                  include_word_vectors=True, include_chars=True,
-                 include_syntactical_features=True, include_exact_match=True, include_amr_path=True):
+                 include_syntactical_features=True, include_exact_match=True,
+                 include_amr_path=False, include_sdg_path=False):
         self.word_mapping = word_mapping
         self.char_mapping = char_mapping
         self.part_of_speech_mapping = part_of_speech_mapping
@@ -42,6 +44,7 @@ class BasePreprocessor(object):
         self.include_syntactical_features = include_syntactical_features
         self.include_exact_match = include_exact_match
         self.include_amr_path = include_amr_path
+        self.include_sdg_path = include_sdg_path
 
     @staticmethod
     def load_data(file_path):
@@ -92,6 +95,9 @@ class BasePreprocessor(object):
         raise NotImplementedError
 
     def get_amr_path(self, sample):
+        return None
+
+    def get_sdg_path(self, sample):
         return None
 
     def label_to_one_hot(self, label):
@@ -173,14 +179,30 @@ class BasePreprocessor(object):
             label = self.get_label(sample=sample)
             premise, hypothesis = self.get_sentences(sample=sample)
 
-            ''' Add AMR path to hypothesis '''
             if self.include_amr_path:
+                ''' Add AMR path to hypothesis '''
+
+                # TODO: Implement an option for using both amr and sdg paths
+                if self.include_sdg_path:
+                    raise NotImplementedError("Using both SDG and AMR paths"
+                                              "is not implemented yet")
+
                 amr_path = self.get_amr_path(sample)
                 if amr_path != '':
                     hypothesis = amr_path
                 else:
                     hypothesis = hypothesis.split(' ')
                     hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
+
+            elif self.include_sdg_path:
+                ''' Add SDG path to hypothesis '''
+                sdg_path = self.get_sdg_path(sample)
+                if sdg_path != '':
+                    hypothesis = sdg_path
+                else:
+                    hypothesis = hypothesis.split(' ')
+                    hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
+
 
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
@@ -243,6 +265,9 @@ class BioNLPPreprocessor(BasePreprocessor):
 
     def get_amr_path(self, sample):
         return sample['amr_path']
+
+    def get_sdg_path(self, sample):
+        return sample['sdg_path']
 
     def get_label(self, sample):
         return sample['label']
