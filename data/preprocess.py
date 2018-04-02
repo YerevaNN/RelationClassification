@@ -4,13 +4,13 @@ import argparse
 import json
 import os
 
-import nltk
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from util import get_word2vec_file_path, ChunkDataManager
+
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -238,8 +238,9 @@ class BasePreprocessor(object):
 
 class BioNLPPreprocessor(BasePreprocessor):
 
-    def __init__(self, omit_interactions=None, **kwargs):
+    def __init__(self, omit_interactions=None, include_single_interaction=True, **kwargs):
         self.valid_interactions = omit_interactions
+        self.include_single_interaction = include_single_interaction
         super(BioNLPPreprocessor, self).__init__(**kwargs)
 
     @staticmethod
@@ -277,9 +278,10 @@ class BioNLPPreprocessor(BasePreprocessor):
 
     def skip_sample(self, sample):
         interaction_tuple = sample['interaction_tuple']
+        interaction_tuple = [item for item in interaction_tuple if item is not None]
         interaction_type = interaction_tuple[0]
-        if self.valid_interactions is not None and interaction_type not in self.valid_interactions:
-            return True
+        if self.valid_interactions is not None and interaction_type not in self.valid_interactions:     return True
+        if not self.include_single_interaction and len(interaction_tuple) == 2:                         return True
         return False
 
 
