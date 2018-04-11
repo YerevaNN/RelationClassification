@@ -48,7 +48,6 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
           models_dir='models', log_dir='logs',
           train_path='data/bionlp_train_data.json',
           valid_path='data/bionlp_valid_data.json',
-          test_path='data/bionlp_test_data.json',
           train_processor_load_path=None, train_processor_save_path='data/train_processor.pkl',
           valid_processor_load_path=None, valid_processor_save_path='data/valid_processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=False,
@@ -89,7 +88,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
         raise ValueError('couldn\'t find implementation for specified dataset')
 
     if train_processor_load_path is None and valid_processor_load_path is None:
-        all_words, all_parts_of_speech = train_processor.get_all_words_with_parts_of_speech([train_path, test_path, valid_path])
+        all_words, all_parts_of_speech = train_processor.get_all_words_with_parts_of_speech([train_path, valid_path])
 
         ''' Mappings '''
         word_mapping = WordVectors()
