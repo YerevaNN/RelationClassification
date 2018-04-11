@@ -12,6 +12,7 @@ from tqdm import tqdm
 from layers.decaying_dropout import DecayingDropout
 from model import Classifier
 from optimizers.l2optimizer import L2Optimizer
+from data.preprocess import BioNLPPreprocessor
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -54,7 +55,8 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid
             if platform.python_version()[0] == '2':     preprocessor = pickle.load(f)
             else:                                       preprocessor = pickle.load(f, encoding='latin1')
         if interaction:
-            preprocessor.valid_interactions = {interaction}
+            if interaction == '__all__':    preprocessor.valid_interactions = None
+            else:                           preprocessor.valid_interactions = {interaction}
         data = preprocessor.load_data(input_path)
     else:
         raise ValueError('Could not find implementation for specified dataset')
