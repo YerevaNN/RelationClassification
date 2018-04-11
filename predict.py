@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import json
+import platform
 
 import fire
 import numpy as np
@@ -49,8 +50,11 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid
         model = load_model(model_path, custom_objects={'Classifier': Classifier,
                                                        'DecayingDropout': DecayingDropout,
                                                        'L2Optimizer': L2Optimizer})
-        with open(processor_path, 'rb') as f:   preprocessor = pickle.load(f)
-        if interaction:                         preprocessor.valid_interactions = {interaction}
+        with open(processor_path, 'rb') as f:
+            if platform.python_version()[0] == '2':     preprocessor = pickle.load(f)
+            else:                                       preprocessor = pickle.load(f, encoding='latin1')
+        if interaction:
+            preprocessor.valid_interactions = {interaction}
         data = preprocessor.load_data(input_path)
     else:
         raise ValueError('Could not find implementation for specified dataset')
