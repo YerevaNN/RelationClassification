@@ -184,25 +184,12 @@ class BasePreprocessor(object):
 
                 # TODO: Implement an option for using both amr and sdg paths
                 if self.include_sdg_path:
-                    raise NotImplementedError("Using both SDG and AMR paths"
-                                              "is not implemented yet")
-
-                amr_path = self.get_amr_path(sample)
-                if amr_path != '':
-                    hypothesis = amr_path
-                else:
-                    hypothesis = hypothesis.split(' ')
-                    hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
+                    raise NotImplementedError("Using both SDG and AMR paths is not implemented yet")
+                hypothesis = self.get_amr_path(sample)
 
             elif self.include_sdg_path:
                 ''' Add SDG path to hypothesis '''
-                sdg_path = self.get_sdg_path(sample)
-                if sdg_path != '':
-                    hypothesis = sdg_path
-                else:
-                    hypothesis = hypothesis.split(' ')
-                    hypothesis = hypothesis[-2] + ' unknown ' + hypothesis[-1]
-
+                hypothesis = self.get_sdg_path(sample)
 
             sample_inputs = self.parse_one(premise, hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
@@ -265,10 +252,18 @@ class BioNLPPreprocessor(BasePreprocessor):
         return text, ' '.join(interaction_tuple)
 
     def get_amr_path(self, sample):
-        return sample['amr_path']
+        if sample['amr_path'].strip() != '':
+            return sample['amr_path']
+        interaction_tuple = sample['interaction_tuple']
+        interaction_tuple = [item for item in interaction_tuple if item is not None]
+        return ' '.join(interaction_tuple)
 
     def get_sdg_path(self, sample):
-        return sample['sdg_path']
+        if sample['sdg_path'].strip() != '':
+            return sample['sdg_path']
+        interaction_tuple = sample['interaction_tuple']
+        interaction_tuple = [item for item in interaction_tuple if item is not None]
+        return ' '.join(interaction_tuple)
 
     def get_label(self, sample):
         return sample['label']
