@@ -4,13 +4,10 @@ import json
 
 import fire
 import numpy as np
-from keras.models import load_model
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score
 from tqdm import tqdm
 
-from layers.decaying_dropout import DecayingDropout
-from model import Classifier
-from optimizers.l2optimizer import L2Optimizer
+from model.architectures import get_classifier
 from data.preprocess import BioNLPPreprocessor
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
@@ -47,9 +44,6 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid
          interaction=None):
 
     if dataset == 'bionlp':
-        model = load_model(model_path, custom_objects={'Classifier': Classifier,
-                                                       'DecayingDropout': DecayingDropout,
-                                                       'L2Optimizer': L2Optimizer})
         with open(processor_path, 'rb') as f:
             preprocessor = pickle.load(f)
         if interaction:
@@ -59,6 +53,7 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid
     else:
         raise ValueError('Could not find implementation for specified dataset')
 
+    model = get_classifier(model_path=model_path)
     predict(model=model,
             preprocessor=preprocessor,
             data=data,

@@ -1,8 +1,11 @@
 from keras import Model
 from keras.layers import Dense, Concatenate, GRU, Masking
 from keras.layers.wrappers import Bidirectional
+from keras.models import load_model
 
+from layers.decaying_dropout import DecayingDropout
 from model.input import WordVectorInput, CharInput, PosTagInput, ExactMatchInput
+from optimizers.l2optimizer import L2Optimizer
 
 
 class Classifier(Model):
@@ -98,13 +101,19 @@ class BiGRUClassifier(Classifier):
         return interaction
 
 
-def get_classifier(architecture='BiGRU',
+def get_classifier(model_path=None,
+                   architecture='BiGRU',
                    input_shapes=None,
                    include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                    include_chars=True, chars_per_word=16, char_embedding_size=8,
                    include_postag_features=True, postag_feature_size=50,
                    include_exact_match=True,
                    nb_labels=3):
+    if model_path:
+        return load_model(model_path, custom_objects={'Classifier': Classifier,
+                                                      'BiGRUClassifier': BiGRUClassifier,
+                                                      'DecayingDropout': DecayingDropout,
+                                                      'L2Optimizer': L2Optimizer})
     if architecture == 'BiGRU':
         return BiGRUClassifier(input_shapes=input_shapes,
                                include_word_vectors=include_word_vectors,
