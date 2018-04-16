@@ -14,7 +14,7 @@ from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 from keras.optimizers import Adam
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
-from model import Classifier
+from model.architectures import get_classifier
 from optimizers.l2optimizer import L2Optimizer
 from data.preprocess import BioNLPPreprocessor
 from util import get_word2vec_file_path, AllMetrics, get_git_hash
@@ -118,21 +118,17 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f)
 
     ''' Prepare the model and optimizers '''
-    model = Classifier(p=None,  # or p
-                       h=None,  # or h
-                       include_word_vectors=not omit_word_vectors,
-                       word_embedding_weights=train_processor.word_mapping.vectors,
-                       train_word_embeddings=train_word_embeddings,
-                       include_chars=not omit_chars,
-                       chars_per_word=chars_per_word,
-                       char_embedding_size=char_embed_size,
-                       include_syntactical_features=not omit_syntactical_features,
-                       syntactical_feature_size=len(train_processor.part_of_speech_mapping.key_to_id),
-                       include_exact_match=not omit_exact_match,
-                       dropout_initial_keep_rate=dropout_initial_keep_rate,
-                       dropout_decay_rate=dropout_decay_rate,
-                       dropout_decay_interval=dropout_decay_interval,
-                       nb_labels=len(train_processor.get_labels()))
+    model = get_classifier(input_shapes=(None, None),  # of (p, h)
+                           include_word_vectors=not omit_word_vectors,
+                           word_embedding_weights=train_processor.word_mapping.vectors,
+                           train_word_embeddings=train_word_embeddings,
+                           include_chars=not omit_chars,
+                           chars_per_word=chars_per_word,
+                           char_embedding_size=char_embed_size,
+                           include_postag_features=not omit_syntactical_features,
+                           postag_feature_size=len(train_processor.part_of_speech_mapping.key_to_id),
+                           include_exact_match=not omit_exact_match,
+                           nb_labels=len(train_processor.get_labels()))
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
     model.summary()
