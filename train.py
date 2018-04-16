@@ -45,6 +45,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
           chars_per_word=20, char_embed_size=8,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
+          architecture='BiGRU',
           models_dir='models', log_dir='logs',
           train_path='data/bionlp_train_data.json',
           valid_path='data/bionlp_valid_data.json',
@@ -118,7 +119,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f)
 
     ''' Prepare the model and optimizers '''
-    model = get_classifier(input_shapes=(None, None),  # of (p, h)
+    model = get_classifier(architecture=architecture,
+                           input_shapes=(None, None),  # of (p, h)
                            include_word_vectors=not omit_word_vectors,
                            word_embedding_weights=train_processor.word_mapping.vectors,
                            train_word_embeddings=train_word_embeddings,
