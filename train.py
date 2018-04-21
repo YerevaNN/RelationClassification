@@ -43,8 +43,10 @@ def data_generator(samples, processor, batch_size, shuffle=True):
 
 def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
           chars_per_word=20, char_embed_size=8,
-          dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
+          first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
+          layers_per_dense_block=8, nb_dense_blocks=3,
+          dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
           architecture='BiGRU',
           models_dir='models', log_dir='logs',
           train_path='data/bionlp_train_data.json',
@@ -130,7 +132,15 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
                            include_postag_features=not omit_syntactical_features,
                            postag_feature_size=len(train_processor.part_of_speech_mapping.key_to_id),
                            include_exact_match=not omit_exact_match,
-                           nb_labels=len(train_processor.get_labels()))
+                           nb_labels=len(train_processor.get_labels()),
+                           first_scale_down_ratio=first_scale_down_ratio,
+                           transition_scale_down_ratio=transition_scale_down_ratio,
+                           growth_rate=growth_rate,
+                           layers_per_dense_block=layers_per_dense_block,
+                           nb_dense_blocks=nb_dense_blocks,
+                           dropout_initial_keep_rate=dropout_initial_keep_rate,
+                           dropout_decay_rate=dropout_decay_rate,
+                           dropout_decay_interval=dropout_decay_interval)
     adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
     model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
     model.summary()
@@ -154,7 +164,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
                         validation_data=(valid_data[:-1], valid_data[-1]),
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=5),
+                                   EarlyStopping(patience=20),
                                    AllMetrics(valid_data[:-1], valid_data[-1])],
                         class_weight=class_weights)
 

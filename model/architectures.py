@@ -79,13 +79,37 @@ class Classifier(Model):
 
 
 class BiGRUClassifier(Classifier):
+    def __init__(self, input_shapes=None,
+                 include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
+                 include_chars=True, chars_per_word=16, char_embedding_size=8,
+                 include_postag_features=True, postag_feature_size=50,
+                 include_exact_match=True,
+                 dropout_rate=0.3,
+                 nb_labels=3,
+                 inputs=None, outputs=None, name='RelationClassifier'):
+        self.dropout_rate = dropout_rate
+        super(BiGRUClassifier, self).__init__(input_shapes=input_shapes,
+                                              include_word_vectors=include_word_vectors,
+                                              word_embedding_weights=word_embedding_weights,
+                                              train_word_embeddings=train_word_embeddings,
+                                              include_chars=include_chars,
+                                              chars_per_word=chars_per_word,
+                                              char_embedding_size=char_embedding_size,
+                                              include_postag_features=include_postag_features,
+                                              postag_feature_size=postag_feature_size,
+                                              include_exact_match=include_exact_match,
+                                              nb_labels=nb_labels,
+                                              inputs=inputs, outputs=outputs, name=name)
+
     def create_encodings(self, embeddings):
         embeddings = [Masking()(embedding) for embedding in embeddings]
-        return [Bidirectional(GRU(units=64, return_sequences=True))(embedding) for embedding in embeddings]
+        return [Bidirectional(GRU(units=64,
+                                  return_sequences=True,
+                                  dropout=self.dropout_rate))(embedding) for embedding in embeddings]
 
     def create_interaction(self, encodings):
         concat = Concatenate(axis=1)(encodings)
-        interaction = Bidirectional(GRU(units=128))(concat)
+        interaction = Bidirectional(GRU(units=128, dropout=self.dropout_rate))(concat)
         return interaction
 
     def create_feature_extraction(self, interaction):
@@ -125,11 +149,16 @@ class DIIN(Classifier):
                                    inputs=inputs, outputs=outputs, name=name)
 
     def create_encodings(self, embeddings):
-        return [Encoding()(embedding) for embedding in embeddings]
+        encodings = [Encoding()(embedding) for embedding in embeddings]
+        return [DecayingDropout(initial_keep_rate=self.dropout_initial_keep_rate,
+                                decay_interval=self.dropout_decay_interval,
+                                decay_rate=self.dropout_decay_rate)(encoding) for encoding in encodings]
 
     def create_interaction(self, encodings):
         interaction = Interaction(name='Interaction')(encodings)
-        return interaction
+        return DecayingDropout(initial_keep_rate=self.dropout_initial_keep_rate,
+                               decay_interval=self.dropout_decay_interval,
+                               decay_rate=self.dropout_decay_rate)(interaction)
 
     def create_feature_extraction(self, interaction):
         d = K.int_shape(interaction)[-1]
@@ -165,6 +194,10 @@ def get_classifier(model_path=None,
     if model_path:
         return load_model(model_path, custom_objects={'Classifier': Classifier,
                                                       'BiGRUClassifier': BiGRUClassifier,
+                                                      'DIIN': DIIN,
+                                                      'Encoding': Encoding,
+                                                      'Interaction': Interaction,
+                                                      'DenseNet': DenseNet,
                                                       'DecayingDropout': DecayingDropout,
                                                       'L2Optimizer': L2Optimizer})
     if architecture == 'BiGRU':
@@ -176,6 +209,7 @@ def get_classifier(model_path=None,
                                chars_per_word=chars_per_word, char_embedding_size=char_embedding_size,
                                include_postag_features=include_postag_features, postag_feature_size=postag_feature_size,
                                include_exact_match=include_exact_match,
+                               dropout_rate=1.-dropout_initial_keep_rate,
                                nb_labels=nb_labels)
     elif architecture == 'DIIN':
         return DIIN(input_shapes=input_shapes,
