@@ -1,16 +1,10 @@
 from __future__ import print_function
 
-import argparse
 import json
-import os
 
 import numpy as np
 from keras.preprocessing.sequence import pad_sequences
 from tqdm import tqdm
-
-from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
-from util import get_word2vec_file_path, ChunkDataManager
-
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
@@ -48,32 +42,18 @@ class BasePreprocessor(object):
 
     @staticmethod
     def load_data(file_path):
-        """
-        Load jsonl file by default
-        """
         with open(file_path) as f:
             lines = f.readlines()
             text = '[' + ','.join(lines) + ']'
             return json.loads(text)
 
-    def get_words_with_part_of_speech(self, sentence):
-        """
-        :return: words, parts_of_speech
-        """
+    def get_words_with_part_of_speech(self, sample, sentence):
         raise NotImplementedError
 
     def get_sentences(self, sample):
-        """
-        :param sample: sample from data
-        :return: premise, hypothesis
-        """
         raise NotImplementedError
 
     def get_all_words_with_parts_of_speech(self, file_paths):
-        """
-        :param file_paths: paths to files where the data is stored
-        :return: words, parts_of_speech
-        """
         all_words = []
         all_parts_of_speech = []
         for file_path in file_paths:
@@ -81,8 +61,8 @@ class BasePreprocessor(object):
 
             for sample in tqdm(data):
                 premise, hypothesis = self.get_sentences(sample)
-                premise_words,    premise_speech    = self.get_words_with_part_of_speech(premise)
-                hypothesis_words, hypothesis_speech = self.get_words_with_part_of_speech(hypothesis)
+                premise_words,    premise_speech    = self.get_words_with_part_of_speech(sample, premise)
+                hypothesis_words, hypothesis_speech = self.get_words_with_part_of_speech(sample, hypothesis)
                 all_words           += premise_words  + hypothesis_words
                 all_parts_of_speech += premise_speech + hypothesis_speech
 
@@ -107,9 +87,9 @@ class BasePreprocessor(object):
         res[i] = 1
         return res
 
-    def parse_sentence(self, sentence, max_words, chars_per_word):
+    def parse_sentence(self, sample, sentence, max_words, chars_per_word):
         # Words
-        words, parts_of_speech = self.get_words_with_part_of_speech(sentence)
+        words, parts_of_speech = self.get_words_with_part_of_speech(sample, sentence)
         word_ids = [self.word_mapping[word] for word in words]
 
         # Syntactical features
@@ -124,25 +104,14 @@ class BasePreprocessor(object):
                 syntactical_features, pad(syntactical_one_hot, max_words),
                 pad(chars, max_words))
 
-    def parse_one(self, premise, hypothesis, max_words_p, max_words_h, chars_per_word):
-        """
-        :param premise: sentence
-        :param hypothesis: sentence
-        :param max_words_p: maximum number of words in premise
-        :param max_words_h: maximum number of words in hypothesis
-        :param chars_per_word: number of chars in each word
-        :return: (premise_word_ids, hypothesis_word_ids,
-                  premise_chars, hypothesis_chars,
-                  premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
-                  premise_exact_match, hypothesis_exact_match)
-        """
+    def parse_one(self, sample, premise, hypothesis, max_words_p, max_words_h, chars_per_word):
         (premise_words, premise_parts_of_speech, premise_word_ids,
          premise_syntactical_features, premise_syntactical_one_hot,
-         premise_chars) = self.parse_sentence(sentence=premise, max_words=max_words_p, chars_per_word=chars_per_word)
+         premise_chars) = self.parse_sentence(sentence=premise, sample=sample, max_words=max_words_p, chars_per_word=chars_per_word)
 
         (hypothesis_words, hypothesis_parts_of_speech, hypothesis_word_ids,
          hypothesis_syntactical_features, hypothesis_syntactical_one_hot,
-         hypothesis_chars) = self.parse_sentence(sentence=hypothesis, max_words=max_words_h, chars_per_word=chars_per_word)
+         hypothesis_chars) = self.parse_sentence(sentence=hypothesis, sample=sample, max_words=max_words_h, chars_per_word=chars_per_word)
 
         def calculate_exact_match(source_words, target_words):
             source_words = [word.lower() for word in source_words]
@@ -161,14 +130,6 @@ class BasePreprocessor(object):
                 premise_exact_match, hypothesis_exact_match)
 
     def parse(self, data, verbose=False):
-        """
-        :param data: data to parse
-        :param verbose: to show progress or not
-        :return: (premise_word_ids, hypothesis_word_ids,
-                  premise_chars, hypothesis_chars,
-                  premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
-                  premise_exact_match, hypothesis_exact_match)
-        """
         # res = [premise_word_ids, hypothesis_word_ids, premise_chars, hypothesis_chars,
         # premise_syntactical_one_hot, hypothesis_syntactical_one_hot, premise_exact_match, hypothesis_exact_match]
         res = [[], [], [], [], [], [], [], [], []]
@@ -191,7 +152,7 @@ class BasePreprocessor(object):
                 ''' Add SDG path to hypothesis '''
                 hypothesis = self.get_sdg_path(sample)
 
-            sample_inputs = self.parse_one(premise, hypothesis,
+            sample_inputs = self.parse_one(sample=sample, premise=premise, hypothesis=hypothesis,
                                            max_words_h=self.max_words_h, max_words_p=self.max_words_p,
                                            chars_per_word=self.chars_per_word)
             label = self.label_to_one_hot(label=label)
@@ -240,13 +201,13 @@ class BioNLPPreprocessor(BasePreprocessor):
             res.append(value)
         return res
 
-    def get_words_with_part_of_speech(self, sentence):
+    def get_words_with_part_of_speech(self, sample, sentence):
         words = sentence.split()  # nltk.word_tokenize(sentence)
         parts_of_speech = ['X'] * len(words)
         return words, parts_of_speech
 
     def get_sentences(self, sample):
-        text = sample['text']
+        text = ' '.join(sample['tokenized_text']) if 'tokenized_text' in sample else sample['text']
         interaction_tuple = sample['interaction_tuple']
         interaction_tuple = [item for item in interaction_tuple if item is not None]
         return text, ' '.join(interaction_tuple)
@@ -278,80 +239,3 @@ class BioNLPPreprocessor(BasePreprocessor):
         if self.valid_interactions is not None and interaction_type not in self.valid_interactions:     return True
         if not self.include_single_interaction and len(interaction_tuple) == 2:                         return True
         return False
-
-
-def preprocess(preprocessor, save_dir, data_paths, processor_save_path,
-               normalize_word_vectors, max_loaded_word_vectors=None, word_vectors_load_path=None):
-
-    all_words, all_parts_of_speech = preprocessor.get_all_words_with_parts_of_speech([data_path[1] for data_path in data_paths])
-
-    ''' Mappings '''
-    word_mapping = WordVectors()
-    word_mapping.load(file_path=get_word2vec_file_path(word_vectors_load_path),
-                      needed_words=set(all_words),
-                      normalize=normalize_word_vectors,
-                      max_words=max_loaded_word_vectors)
-
-    char_mapping = CharToIdMapping(set(all_words))
-    part_of_speech_mapping = KeyToIdMapping(keys=set(all_parts_of_speech))
-
-    ''' Initialize preprocessor mappings '''
-    preprocessor.word_mapping = word_mapping
-    preprocessor.char_mapping = char_mapping
-    preprocessor.part_of_speech_mapping = part_of_speech_mapping
-
-    if processor_save_path is not None:
-        with open(processor_save_path, 'wb') as f:
-            pickle.dump(preprocessor, file=f)
-
-    ''' Process and save the data '''
-    for dataset, input_path in data_paths:
-        data = preprocessor.parse_file(input_file_path=input_path)
-        data_saver = ChunkDataManager(save_data_path=os.path.join(save_dir, dataset))
-        data_saver.save(data)
-
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--p',              default=32,         help='Maximum words in premise',            type=int)
-    parser.add_argument('--h',              default=4,          help='Maximum words in hypothesis',         type=int)
-    parser.add_argument('--chars_per_word', default=16,         help='Number of characters in one word',    type=int)
-    parser.add_argument('--max_word_vecs',  default=None,       help='Maximum number of word vectors',      type=int)
-    parser.add_argument('--save_dir',       default='data/',    help='Save directory of data',              type=str)
-    parser.add_argument('--dataset',        default='bionlp',   help='Which preprocessor to use',           type=str)
-    parser.add_argument('--word_vec_load_path', default=None,   help='Path to load word vectors',           type=str)
-    parser.add_argument('--processor_save_path',    default='data/processor.pkl', help='Path to save vectors', type=str)
-    parser.add_argument('--normalize_word_vectors',      action='store_true')
-    parser.add_argument('--omit_word_vectors',           action='store_true')
-    parser.add_argument('--omit_chars',                  action='store_true')
-    parser.add_argument('--omit_syntactical_features',   action='store_true')
-    parser.add_argument('--omit_exact_match',            action='store_true')
-    args = parser.parse_args()
-
-    if args.dataset == 'bionlp':
-        preprocessor = BioNLPPreprocessor(max_words_p=args.p,
-                                          max_words_h=args.h,
-                                          chars_per_word=args.chars_per_word,
-                                          include_word_vectors=not args.omit_word_vectors,
-                                          include_chars=not args.omit_chars,
-                                          include_syntactical_features=not args.omit_syntactical_features,
-                                          include_exact_match=not args.omit_exact_match)
-        # path = get_snli_file_path()
-        path = './data'
-        train_path = os.path.join(path, 'bionlp_train_data.json')
-        test_path  = os.path.join(path, 'bionlp_test_data.json')
-        dev_path   = os.path.join(path, 'bionlp_valid_data.json')
-    else:
-        raise ValueError('couldn\'t find implementation for specified dataset')
-
-    preprocess(preprocessor=preprocessor,
-               save_dir=args.save_dir,
-               data_paths=[('train', train_path), ('test', test_path), ('dev', dev_path)],
-               word_vectors_load_path=args.word_vec_load_path,
-               normalize_word_vectors=args.normalize_word_vectors,
-               processor_save_path=args.processor_save_path,
-               max_loaded_word_vectors=args.max_word_vecs)
-
-
-if __name__ == '__main__':
-    main()
