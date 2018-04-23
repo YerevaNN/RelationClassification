@@ -94,7 +94,7 @@ class BasePreprocessor(object):
 
         # Syntactical features
         syntactical_features = [self.part_of_speech_mapping[part] for part in parts_of_speech]
-        syntactical_one_hot = np.eye(len(self.part_of_speech_mapping) + 2)[syntactical_features]  # Convert to 1-hot
+        syntactical_one_hot = np.eye(len(self.part_of_speech_mapping))[syntactical_features]  # Convert to 1-hot
 
         # Chars
         chars = [[self.char_mapping[c] for c in word] for word in words]
@@ -202,9 +202,13 @@ class BioNLPPreprocessor(BasePreprocessor):
         return res
 
     def get_words_with_part_of_speech(self, sample, sentence):
-        words = sentence.split()  # nltk.word_tokenize(sentence)
-        parts_of_speech = ['X'] * len(words)
-        return words, parts_of_speech
+        if sentence == self.get_sentences(sample)[0]:
+            words = sample['tokenized_text'] if 'tokenized_text' in sample else sample['text'].split()
+            pos_tags = sample['pos_tags'] if self.include_syntactical_features else ['X'] * len(words)
+        else:
+            words = sentence.split(' ')
+            pos_tags = ['X'] * len(words)
+        return words, pos_tags
 
     def get_sentences(self, sample):
         text = ' '.join(sample['tokenized_text']) if 'tokenized_text' in sample else sample['text']
