@@ -56,13 +56,16 @@ class CharInput(InputCreator):
 
 
 class PosTagInput(InputCreator):
-    def __init__(self, shapes, postag_feature_size):
-        self.postag_feature_size = postag_feature_size
+    def __init__(self, shapes, nb_pos_tags, embedding_size):
+        self.pos_tag_embedding = Embedding(input_dim=nb_pos_tags,
+                                           output_dim=embedding_size,
+                                           trainable=True,
+                                           name='PosTagEmbedding')
         super(PosTagInput, self).__init__(shapes=shapes)
 
     def __call__(self, *args, **kwargs):
-        inputs = [Input(shape=(shape, self.postag_feature_size)) for shape in self.shapes]
-        embeddings = inputs
+        inputs = [Input(shape=(shape,), dtype='int64') for shape in self.shapes]
+        embeddings = [self.pos_tag_embedding(pos_tag_input) for pos_tag_input in inputs]
         return inputs, embeddings
 
 

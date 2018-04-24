@@ -22,7 +22,7 @@ class BasePreprocessor(object):
                  part_of_speech_mapping=None, omit_labels=None,
                  max_words_p=33, max_words_h=20, chars_per_word=13,
                  include_word_vectors=True, include_chars=True,
-                 include_syntactical_features=True, include_exact_match=True,
+                 include_pos_tags=True, include_exact_match=True,
                  include_amr_path=False, include_sdg_path=False):
         self.word_mapping = word_mapping
         self.char_mapping = char_mapping
@@ -35,7 +35,7 @@ class BasePreprocessor(object):
 
         self.include_word_vectors = include_word_vectors
         self.include_chars = include_chars
-        self.include_syntactical_features = include_syntactical_features
+        self.include_pos_tags = include_pos_tags
         self.include_exact_match = include_exact_match
         self.include_amr_path = include_amr_path
         self.include_sdg_path = include_sdg_path
@@ -93,25 +93,22 @@ class BasePreprocessor(object):
         word_ids = [self.word_mapping[word] for word in words]
 
         # Syntactical features
-        syntactical_features = [self.part_of_speech_mapping[part] for part in parts_of_speech]
-        syntactical_one_hot = np.eye(len(self.part_of_speech_mapping))[syntactical_features]  # Convert to 1-hot
+        pos_tag_ids = [self.part_of_speech_mapping[part] for part in parts_of_speech]
 
         # Chars
         chars = [[self.char_mapping[c] for c in word] for word in words]
         chars = pad_sequences(chars, maxlen=chars_per_word, padding='post', truncating='post')
 
         return (words, parts_of_speech, np.array(word_ids, copy=False),
-                syntactical_features, pad(syntactical_one_hot, max_words),
+                pos_tag_ids,
                 pad(chars, max_words))
 
     def parse_one(self, sample, premise, hypothesis, max_words_p, max_words_h, chars_per_word):
         (premise_words, premise_parts_of_speech, premise_word_ids,
-         premise_syntactical_features, premise_syntactical_one_hot,
-         premise_chars) = self.parse_sentence(sentence=premise, sample=sample, max_words=max_words_p, chars_per_word=chars_per_word)
+         premise_syntactical_ids, premise_chars) = self.parse_sentence(sentence=premise, sample=sample, max_words=max_words_p, chars_per_word=chars_per_word)
 
         (hypothesis_words, hypothesis_parts_of_speech, hypothesis_word_ids,
-         hypothesis_syntactical_features, hypothesis_syntactical_one_hot,
-         hypothesis_chars) = self.parse_sentence(sentence=hypothesis, sample=sample, max_words=max_words_h, chars_per_word=chars_per_word)
+         hypothesis_syntactical_ids, hypothesis_chars) = self.parse_sentence(sentence=hypothesis, sample=sample, max_words=max_words_h, chars_per_word=chars_per_word)
 
         def calculate_exact_match(source_words, target_words):
             source_words = [word.lower() for word in source_words]
@@ -126,12 +123,12 @@ class BasePreprocessor(object):
 
         return (premise_word_ids, hypothesis_word_ids,
                 premise_chars, hypothesis_chars,
-                premise_syntactical_one_hot, hypothesis_syntactical_one_hot,
+                premise_syntactical_ids, hypothesis_syntactical_ids,
                 premise_exact_match, hypothesis_exact_match)
 
     def parse(self, data, verbose=False):
         # res = [premise_word_ids, hypothesis_word_ids, premise_chars, hypothesis_chars,
-        # premise_syntactical_one_hot, hypothesis_syntactical_one_hot, premise_exact_match, hypothesis_exact_match]
+        # premise_pos_tag_ids, hypothesis_pos_tag_ids, premise_exact_match, hypothesis_exact_match]
         res = [[], [], [], [], [], [], [], [], []]
 
         for sample in tqdm(data) if verbose else data:
@@ -163,12 +160,14 @@ class BasePreprocessor(object):
 
         res[0] = pad_sequences(res[0], maxlen=self.max_words_p, padding='post', truncating='post', value=0.)  # input_word_p
         res[1] = pad_sequences(res[1], maxlen=self.max_words_h, padding='post', truncating='post', value=0.)  # input_word_h
+        res[4] = pad_sequences(res[4], maxlen=self.max_words_p, padding='post', truncating='post', value=0.)  # pos_tag_p
+        res[5] = pad_sequences(res[5], maxlen=self.max_words_h, padding='post', truncating='post', value=0.)  # pos_tag_h
         res[6] = pad_sequences(res[6], maxlen=self.max_words_p, padding='post', truncating='post', value=0.)  # exact_match_p
         res[7] = pad_sequences(res[7], maxlen=self.max_words_h, padding='post', truncating='post', value=0.)  # exact_match_h
 
         # Determine which part of data we need to dump
         if not self.include_exact_match:             del res[6:8]  # Exact match feature
-        if not self.include_syntactical_features:    del res[4:6]  # Syntactical POS tags
+        if not self.include_pos_tags:                del res[4:6]  # Syntactical POS tags
         if not self.include_chars:                   del res[2:4]  # Character features
         if not self.include_word_vectors:            del res[0:2]  # Word vectors
         return [np.array(item) for item in res]
@@ -204,7 +203,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     def get_words_with_part_of_speech(self, sample, sentence):
         if sentence == self.get_sentences(sample)[0]:
             words = sample['tokenized_text'] if 'tokenized_text' in sample else sample['text'].split()
-            pos_tags = sample['pos_tags'] if self.include_syntactical_features else ['X'] * len(words)
+            pos_tags = sample['pos_tags'] if self.include_pos_tags else ['X'] * len(words)
         else:
             words = sentence.split(' ')
             pos_tags = ['X'] * len(words)
