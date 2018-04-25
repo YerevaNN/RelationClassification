@@ -117,8 +117,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
         raise ValueError('Both --train_processor_load_path and --valid_processor_load_path need to be provided, '
                          'or both omitted')
 
-    with open(train_processor_save_path, 'wb') as f:    pickle.dump(train_processor, file=f)
-    with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f)
+    with open(train_processor_save_path, 'wb') as f:    pickle.dump(train_processor, file=f, protocol=2)
+    with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f, protocol=2)
 
     ''' Prepare the model and optimizers '''
     model = get_classifier(architecture=architecture,
