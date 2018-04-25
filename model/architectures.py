@@ -16,7 +16,7 @@ class Classifier(Model):
     def __init__(self, input_shapes=None,
                  include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                  include_chars=True, chars_per_word=16, char_embedding_size=8,
-                 include_postag_features=True, postag_feature_size=50,
+                 include_pos_tag_features=True, nb_pos_tags=20, pos_tag_embedding_size=8,
                  include_exact_match=True,
                  nb_labels=3,
                  inputs=None, outputs=None, name='RelationClassifier'):
@@ -31,8 +31,9 @@ class Classifier(Model):
         self.include_chars = include_chars
         self.chars_per_word = chars_per_word
         self.char_embedding_size = char_embedding_size
-        self.include_postag_features = include_postag_features
-        self.postag_feature_size = postag_feature_size
+        self.include_pos_tag_features = include_pos_tag_features
+        self.pos_tag_embedding_size = pos_tag_embedding_size
+        self.nb_pos_tags = nb_pos_tags
         self.include_exact_match = include_exact_match
 
         inputs, embeddings = self.create_inputs()
@@ -52,11 +53,12 @@ class Classifier(Model):
                                                          chars_per_word=self.chars_per_word,
                                                          embedding_size=self.char_embedding_size),
                                                PosTagInput(shapes=self.input_shapes,
-                                                           postag_feature_size=self.postag_feature_size),
+                                                           nb_pos_tags=self.nb_pos_tags,
+                                                           embedding_size=self.pos_tag_embedding_size),
                                                ExactMatchInput(shapes=self.input_shapes)],
                                               [self.include_word_vectors,
                                                self.include_chars,
-                                               self.include_postag_features,
+                                               self.include_pos_tag_features,
                                                self.include_exact_match]) if include]
         inputs = []
         embeddings = [[], []]
@@ -79,27 +81,9 @@ class Classifier(Model):
 
 
 class BiGRUClassifier(Classifier):
-    def __init__(self, input_shapes=None,
-                 include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
-                 include_chars=True, chars_per_word=16, char_embedding_size=8,
-                 include_postag_features=True, postag_feature_size=50,
-                 include_exact_match=True,
-                 dropout_rate=0.3,
-                 nb_labels=3,
-                 inputs=None, outputs=None, name='RelationClassifier'):
+    def __init__(self, dropout_rate=0.3, **kwargs):
         self.dropout_rate = dropout_rate
-        super(BiGRUClassifier, self).__init__(input_shapes=input_shapes,
-                                              include_word_vectors=include_word_vectors,
-                                              word_embedding_weights=word_embedding_weights,
-                                              train_word_embeddings=train_word_embeddings,
-                                              include_chars=include_chars,
-                                              chars_per_word=chars_per_word,
-                                              char_embedding_size=char_embedding_size,
-                                              include_postag_features=include_postag_features,
-                                              postag_feature_size=postag_feature_size,
-                                              include_exact_match=include_exact_match,
-                                              nb_labels=nb_labels,
-                                              inputs=inputs, outputs=outputs, name=name)
+        super(BiGRUClassifier, self).__init__(**kwargs)
 
     def create_encodings(self, embeddings):
         embeddings = [Masking()(embedding) for embedding in embeddings]
@@ -117,16 +101,10 @@ class BiGRUClassifier(Classifier):
 
 
 class DIIN(Classifier):
-    def __init__(self, input_shapes=None,
-                 include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
-                 include_chars=True, chars_per_word=16, char_embedding_size=8,
-                 include_postag_features=True, postag_feature_size=50,
-                 include_exact_match=True,
-                 nb_labels=3,
-                 first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
+    def __init__(self, first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
                  layers_per_dense_block=8, nb_dense_blocks=3,
                  dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
-                 inputs=None, outputs=None, name='RelationClassifier'):
+                 **kwargs):
         self.first_scale_down_ratio = first_scale_down_ratio
         self.transition_scale_down_ratio = transition_scale_down_ratio
         self.growth_rate = growth_rate
@@ -135,18 +113,7 @@ class DIIN(Classifier):
         self.dropout_initial_keep_rate = dropout_initial_keep_rate
         self.dropout_decay_rate = dropout_decay_rate
         self.dropout_decay_interval = dropout_decay_interval
-        super(DIIN, self).__init__(input_shapes=input_shapes,
-                                   include_word_vectors=include_word_vectors,
-                                   word_embedding_weights=word_embedding_weights,
-                                   train_word_embeddings=train_word_embeddings,
-                                   include_chars=include_chars,
-                                   chars_per_word=chars_per_word,
-                                   char_embedding_size=char_embedding_size,
-                                   include_postag_features=include_postag_features,
-                                   postag_feature_size=postag_feature_size,
-                                   include_exact_match=include_exact_match,
-                                   nb_labels=nb_labels,
-                                   inputs=inputs, outputs=outputs, name=name)
+        super(DIIN, self).__init__(**kwargs)
 
     def create_encodings(self, embeddings):
         encodings = [Encoding()(embedding) for embedding in embeddings]
@@ -185,7 +152,7 @@ def get_classifier(model_path=None,
                    input_shapes=None,
                    include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                    include_chars=True, chars_per_word=16, char_embedding_size=8,
-                   include_postag_features=True, postag_feature_size=50,
+                   include_pos_tag_features=True, nb_pos_tags=50, pos_tag_embedding_size=8,
                    include_exact_match=True,
                    nb_labels=3,
                    first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
@@ -207,7 +174,8 @@ def get_classifier(model_path=None,
                                train_word_embeddings=train_word_embeddings,
                                include_chars=include_chars,
                                chars_per_word=chars_per_word, char_embedding_size=char_embedding_size,
-                               include_postag_features=include_postag_features, postag_feature_size=postag_feature_size,
+                               include_pos_tag_features=include_pos_tag_features,
+                               nb_pos_tags=nb_pos_tags, pos_tag_embedding_size=pos_tag_embedding_size,
                                include_exact_match=include_exact_match,
                                dropout_rate=1.-dropout_initial_keep_rate,
                                nb_labels=nb_labels)
@@ -218,7 +186,8 @@ def get_classifier(model_path=None,
                     train_word_embeddings=train_word_embeddings,
                     include_chars=include_chars,
                     chars_per_word=chars_per_word, char_embedding_size=char_embedding_size,
-                    include_postag_features=include_postag_features, postag_feature_size=postag_feature_size,
+                    include_pos_tag_features=include_pos_tag_features,
+                    nb_pos_tags=nb_pos_tags, pos_tag_embedding_size=pos_tag_embedding_size,
                     include_exact_match=include_exact_match,
                     nb_labels=nb_labels,
                     first_scale_down_ratio=first_scale_down_ratio,
