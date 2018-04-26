@@ -7,6 +7,7 @@ import os
 import io
 import random
 import fire
+import numpy as np
 
 from pprint import pprint
 
@@ -21,6 +22,9 @@ from util import get_word2vec_file_path, AllMetrics, get_git_hash
 
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
+
+try:                import tensorflow; tensorflow.set_random_seed(777)
+except ImportError: pass
 
 
 def data_generator(samples, processor, batch_size, shuffle=True):
@@ -172,4 +176,9 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
 
 
 if __name__ == '__main__':
+    # Set random seed for reproducibility
+    random_seed = 777
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+
     fire.Fire(train)
