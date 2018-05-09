@@ -42,7 +42,7 @@ def data_generator(samples, processor, batch_size, shuffle=True):
         yield inputs, labels
 
 
-def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
+def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           chars_per_word=20, char_embed_size=8,
           pos_tag_embedding_size=8,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
@@ -159,7 +159,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
     ''' Give weights to classes '''
     zer = 1. * sum([train_processor.get_label(sample) == 0 for sample in train_samples])
     one = 1. * sum([train_processor.get_label(sample) == 1 for sample in train_samples])
-    class_weights = [len(train_samples) / zer, len(train_samples) / one]
+    # class_weights = [len(train_samples) / zer, len(train_samples) / one]
+    class_weights = [one / len(train_samples), zer / len(train_samples)]
     print('Class weights: ', class_weights)
 
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
@@ -167,7 +168,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
                         validation_data=(valid_data[:-1], valid_data[-1]),
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=20),
+                                   EarlyStopping(patience=patience),
                                    AllMetrics(valid_data[:-1], valid_data[-1])],
                         class_weight=class_weights)
 

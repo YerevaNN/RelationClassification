@@ -59,6 +59,7 @@ class WordVectors(Mapping):
     def load_fast_text(self, file_path, needed_words=None, include_unknown=True):
         import fastText
         assert file_path.endswith('.bin')
+        print('Loading fasttext binary model...')
         embeddings = fastText.load_model(file_path)
 
         if needed_words is None:
@@ -67,7 +68,7 @@ class WordVectors(Mapping):
             needed_words.add(self.UNK)
 
         self.words = list(needed_words)
-        self.vectors = [embeddings.get_word_vector(word) for word in self.words]
+        self.vectors = [embeddings.get_word_vector(word) for word in tqdm(self.words)]
         self.vectors = np.array(self.vectors)
 
         print('Initializing word mappings...')
