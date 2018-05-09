@@ -56,10 +56,36 @@ class WordVectors(Mapping):
             vectors.append(vec)
         return words, vectors
 
+    def load_fast_text(self, file_path, needed_words=None, include_unknown=True):
+        import fastText
+        assert file_path.endswith('.bin')
+        embeddings = fastText.load_model(file_path)
+
+        if needed_words is None:
+            needed_words = set()
+        if include_unknown:
+            needed_words.add(self.UNK)
+
+        self.words = list(needed_words)
+        self.vectors = [embeddings.get_word_vector(word) for word in self.words]
+        self.vectors = np.array(self.vectors)
+
+        print('Initializing word mappings...')
+        self.vector_size = self.vectors.shape[-1]
+        self.word_to_id  = {word: i for i, word in enumerate(self.words)}
+        self.vectors = np.array(self.vectors, copy=False)
+
+        assert len(self.word_to_id) == len(self.vectors)
+        print(len(self.word_to_id), 'words in total are now initialized!')
+
     def load(self, file_path, separator=' ', normalize=True, max_words=None, needed_words=None, include_unknown=True):
         """
         :return: words[], np.array(vectors)
         """
+        if file_path.endswith('.bin'):
+            self.load_fast_text(file_path=file_path, needed_words=needed_words, include_unknown=include_unknown)
+            return
+
         seen_words = set()
         self.words = []
         self.vectors = []

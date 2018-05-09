@@ -1,23 +1,20 @@
+from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from __future__ import absolute_import
 
+import io
 import json
 import os
-import io
 import random
-import fire
-import numpy as np
-
 from pprint import pprint
 
+import fire
+import numpy as np
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
-from keras.optimizers import Adam
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
-from model.architectures import get_classifier
-from optimizers.l2optimizer import L2Optimizer
 from data.preprocess import BioNLPPreprocessor
+from model.architectures import get_classifier
 from util import get_word2vec_file_path, AllMetrics, get_git_hash
 
 try:                import cPickle as pickle
@@ -147,8 +144,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500,
                            dropout_initial_keep_rate=dropout_initial_keep_rate,
                            dropout_decay_rate=dropout_decay_rate,
                            dropout_decay_interval=dropout_decay_interval)
-    adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
-    model.compile(optimizer=adam, loss='categorical_crossentropy', metrics=['acc'])
+    # adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
     model.summary()
 
     ''' Initialize training '''
