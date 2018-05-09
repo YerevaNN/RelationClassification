@@ -193,7 +193,7 @@ class BioNLPPreprocessor(BasePreprocessor):
     @staticmethod
     def load_data(file_path):
         with open(file_path) as f:
-            raw_data = json.load(f)
+	    raw_data = json.loads(f.read().lower())  # case insensitive data
         res = []
         for key, value in raw_data.items():
             value.update({'id': key})
