@@ -94,9 +94,9 @@ class WordVectors(Mapping):
                 if max_words and len(self.words) >= max_words:
                     break
 
+        if needed_words is None:
+            needed_words = set()
         if include_unknown:
-            if needed_words is None:
-                needed_words = []
             needed_words.add(self.UNK)
 
         present_words = set(self.words)
