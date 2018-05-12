@@ -23,12 +23,12 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
         data_input = preprocessor.parse(data=batch)
         data_input = data_input[:-1]    # Last axis contains real labels
 
-        model_outputs = model.predict(data_input)
-        predictions = np.argmax(model_outputs, axis=1)
-
+        probabilities = model.predict(data_input)
+        predictions = np.argmax(probabilities, axis=1)
         eval_predictions += list(predictions.flatten())
-        for sample, prediction in zip(batch, predictions):
+        for sample, prediction, probability in zip(batch, predictions, probabilities):
             sample['prediction'] = int(prediction)
+            sample['probabilities'] = probability.tolist()
 
     print('Confusion Matrix:\n', confusion_matrix(eval_labels, eval_predictions))
     print('F score:', f1_score(eval_labels, eval_predictions))
