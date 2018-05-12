@@ -11,6 +11,7 @@ from pprint import pprint
 import fire
 import numpy as np
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from sklearn.utils import class_weight
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from data.preprocess import BioNLPPreprocessor
@@ -157,10 +158,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
     valid_data = valid_processor.parse(valid_samples, verbose=True)
 
     ''' Give weights to classes '''
-    zer = 1. * sum([train_processor.get_label(sample) == 0 for sample in train_samples])
-    one = 1. * sum([train_processor.get_label(sample) == 1 for sample in train_samples])
-    # class_weights = [len(train_samples) / zer, len(train_samples) / one]
-    class_weights = [one / len(train_samples), zer / len(train_samples)]
+    y_train = np.array([train_processor.get_label(sample) for sample in train_samples])
+    class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train), y_train)
     print('Class weights: ', class_weights)
 
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
