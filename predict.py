@@ -4,6 +4,7 @@ import json
 
 import fire
 import numpy as np
+from keras import Model
 from sklearn.metrics import f1_score, confusion_matrix, accuracy_score
 from tqdm import tqdm
 
@@ -13,7 +14,12 @@ try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
 
-def predict(model, preprocessor, data, output_path, batch_size=70):
+def predict(model, preprocessor, data, output_path, include_feature_vector=False, batch_size=70):
+
+    feature_vector_model = Model(inputs=model.inputs,
+                                 outputs=model.get_layer(index=len(model.layers) - 2).output)
+    model.summary()
+    feature_vector_model.summary()
 
     data = [item for item in data if not preprocessor.skip_sample(item)]
     eval_predictions = []
@@ -24,11 +30,14 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
         data_input = data_input[:-1]    # Last axis contains real labels
 
         probabilities = model.predict(data_input)
+        feature_vectors = feature_vector_model.predict(data_input)
         predictions = np.argmax(probabilities, axis=1)
         eval_predictions += list(predictions.flatten())
-        for sample, prediction, probability in zip(batch, predictions, probabilities):
+        for sample, prediction, probability, feature_vector in zip(batch, predictions, probabilities, feature_vectors):
             sample['prediction'] = int(prediction)
             sample['probabilities'] = probability.tolist()
+            if include_feature_vector:
+                sample['feature_vector'] = feature_vector.tolist()
 
     print('Confusion Matrix:\n', confusion_matrix(eval_labels, eval_predictions))
     print('F score:', f1_score(eval_labels, eval_predictions))
@@ -41,7 +50,7 @@ def predict(model, preprocessor, data, output_path, batch_size=70):
 
 def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid_processor.pkl',
          input_path='data/bionlp_test_data.json', output_path='data/out_bionlp_test_data.json',
-         interaction=None):
+         interaction=None, include_feature_vector=False):
 
     if dataset == 'bionlp':
         with open(processor_path, 'rb') as f:
@@ -58,6 +67,7 @@ def main(model_path, batch_size=80, dataset='bionlp', processor_path='data/valid
             preprocessor=preprocessor,
             data=data,
             output_path=output_path,
+            include_feature_vector=include_feature_vector,
             batch_size=batch_size)
 
 
