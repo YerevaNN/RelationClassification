@@ -17,9 +17,8 @@ except ImportError: import _pickle as pickle
 def predict(model, preprocessor, data, output_path, include_feature_vector=False, batch_size=70):
 
     feature_vector_model = Model(inputs=model.inputs,
-                                 outputs=model.get_layer(index=len(model.layers) - 2).output)
-    model.summary()
-    feature_vector_model.summary()
+                                 outputs=model.get_layer(index=len(model.layers) - 2).output,
+                                 name='FeatureExtractor')
 
     data = [item for item in data if not preprocessor.skip_sample(item)]
     eval_predictions = []
