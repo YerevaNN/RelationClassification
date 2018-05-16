@@ -70,8 +70,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
         f.write(json.dumps(logs, ensure_ascii=False, indent=True))
     pprint(logs)
 
-    ''' Fix random seed '''
-    # Set random seed for reproducibility
+    ''' Fix random seed for reproducibility '''
     random.seed(random_seed)
     np.random.seed(random_seed)
     try:                    import tensorflow; tensorflow.set_random_seed(random_seed)
