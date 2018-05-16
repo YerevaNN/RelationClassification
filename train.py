@@ -21,9 +21,6 @@ from util import get_word2vec_file_path, AllMetrics, get_git_hash
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
-try:                import tensorflow; tensorflow.set_random_seed(777)
-except ImportError: pass
-
 
 def data_generator(samples, processor, batch_size, shuffle=True):
     batch_start = len(samples)
@@ -50,6 +47,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
           layers_per_dense_block=8, nb_dense_blocks=3,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
+          random_seed=777,
           architecture='BiGRU',
           models_dir='models', log_dir='logs',
           train_path='data/bionlp_train_data.json',
@@ -71,6 +69,13 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
     with io.open(os.path.join(log_dir, 'info.json'), 'w', encoding='utf-8') as f:
         f.write(json.dumps(logs, ensure_ascii=False, indent=True))
     pprint(logs)
+
+    ''' Fix random seed '''
+    # Set random seed for reproducibility
+    random.seed(random_seed)
+    np.random.seed(random_seed)
+    try:                    import tensorflow; tensorflow.set_random_seed(random_seed)
+    except ImportError:     pass
     
     ''' Prepare data '''
     if dataset == 'bionlp':
@@ -173,9 +178,4 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
 
 
 if __name__ == '__main__':
-    # Set random seed for reproducibility
-    random_seed = 777
-    random.seed(random_seed)
-    np.random.seed(random_seed)
-
     fire.Fire(train)
