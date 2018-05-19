@@ -10,7 +10,7 @@ from pprint import pprint
 
 import fire
 import numpy as np
-from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping, LearningRateScheduler
 from sklearn.utils import class_weight
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
@@ -20,6 +20,20 @@ from util import get_word2vec_file_path, AllMetrics, get_git_hash
 
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
+
+
+def lr_scheduler(lr_min, lr_max, period):
+    delta = (lr_max - lr_min) / (period / 2.)
+    lr_scheduler.sign = -1.
+
+    def schedule(epoch, lr):
+        if lr + lr_scheduler.sign * delta > lr_max:     lr_scheduler.sign *= -1
+        if lr + lr_scheduler.sign * delta < lr_min:     lr_scheduler.sign *= -1
+
+        new_lr = lr + lr_scheduler.sign * delta
+        assert lr_min <= new_lr <= lr_max
+        return new_lr
+    return schedule
 
 
 def data_generator(samples, processor, batch_size, shuffle=True):
@@ -47,6 +61,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
           layers_per_dense_block=8, nb_dense_blocks=3,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
+          lr_max=1., lr_min=0.1, lr_period=3,
           random_seed=777,
           architecture='BiGRU',
           models_dir='models', log_dir='logs',
@@ -172,7 +187,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
                                    EarlyStopping(patience=patience),
-                                   AllMetrics(valid_data[:-1], valid_data[-1])],
+                                   AllMetrics(valid_data[:-1], valid_data[-1]),
+                                   LearningRateScheduler(schedule=lr_scheduler(lr_min, lr_max, period=lr_period))],
                         class_weight=class_weights)
 
 
