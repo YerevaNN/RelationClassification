@@ -13,9 +13,9 @@ from tqdm import tqdm
 
 
 def get_snli_file_path():
-    cache_dir = path.join(path.abspath(path.dirname(__file__)), 'data')
+    cache_dir = 'data'
     download_url = 'https://nlp.stanford.edu/projects/snli/snli_1.0.zip'
-    snli_dir = cache_dir + '/snli_1.0/'
+    snli_dir = path.join(cache_dir, 'snli_1.0/')
 
     if os.path.exists(snli_dir):
         return snli_dir
@@ -34,8 +34,8 @@ def get_word2vec_file_path(file_path):
         return file_path
 
     download_url = 'http://nlp.stanford.edu/data/glove.840B.300d.zip'
-    cache_dir = path.join(path.abspath(path.dirname(__file__)), 'data')
-    glove_file_path = cache_dir + '/glove.840B.300d.txt'
+    cache_dir = 'data'
+    glove_file_path = path.join(cache_dir, 'glove.840B.300d.txt')
 
     if path.exists(glove_file_path):
         return glove_file_path
