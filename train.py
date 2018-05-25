@@ -11,33 +11,18 @@ from pprint import pprint
 import fire
 import numpy as np
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
+from keras.optimizers import SGD
 from sklearn.utils import class_weight
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from data.preprocess import BioNLPPreprocessor
 from model.architectures import get_classifier
-from util import get_word2vec_file_path, AllMetrics, get_git_hash
+from util.generators import data_generator
+from util.lrschedulers import CyclicLearningRateScheduler
+from util.util import get_word2vec_file_path, AllMetrics, get_git_hash
 
 try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
-
-
-def data_generator(samples, processor, batch_size, shuffle=True):
-    batch_start = len(samples)
-    indices = list(range(len(samples)))
-    while True:
-        ''' Start a new epoch '''
-        if batch_start >= len(samples):
-            batch_start = 0
-            if shuffle:
-                random.shuffle(indices)
-
-        ''' Generate a new batch '''
-        batch = [samples[i] for i in indices[batch_start: batch_start + batch_size]]
-        batch_start += batch_size
-        batch = processor.parse(data=batch)
-        inputs, labels = batch[:-1], batch[-1]
-        yield inputs, labels
 
 
 def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
@@ -47,6 +32,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
           layers_per_dense_block=8, nb_dense_blocks=3,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
+          lr_max=1., lr_min=0.1, lr_period=3,
           random_seed=777,
           architecture='BiGRU',
           models_dir='models', log_dir='logs',
@@ -150,7 +136,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                            dropout_decay_rate=dropout_decay_rate,
                            dropout_decay_interval=dropout_decay_interval)
     # adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['acc'])
+    model.compile(optimizer=SGD(lr=lr_max), loss='categorical_crossentropy', metrics=['acc'])
     model.summary()
 
     ''' Initialize training '''
@@ -172,7 +158,8 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                         callbacks=[TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
                                    EarlyStopping(patience=patience),
-                                   AllMetrics(valid_data[:-1], valid_data[-1])],
+                                   AllMetrics(valid_data[:-1], valid_data[-1]),
+                                   CyclicLearningRateScheduler(lr_min, lr_max, period=lr_period)],
                         class_weight=class_weights)
 
 

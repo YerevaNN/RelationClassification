@@ -4,7 +4,7 @@ from keras.activations import softmax
 from keras.engine.topology import Layer
 
 from layers.decaying_dropout import DecayingDropout
-from util import broadcast_last_axis
+from util.util import broadcast_last_axis
 
 
 class Encoding(Layer):
