@@ -11,14 +11,14 @@ from pprint import pprint
 import fire
 import numpy as np
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam
 from sklearn.utils import class_weight
 
 from data.mappings import WordVectors, CharToIdMapping, KeyToIdMapping
 from data.preprocess import BioNLPPreprocessor
 from model.architectures import get_classifier
 from util.generators import data_generator
-from util.lrschedulers import CyclicLearningRateScheduler
+from util.lrschedulers import CyclicLearningRateScheduler, ConstantLearningRateScheduler
 from util.util import get_word2vec_file_path, AllMetrics, get_git_hash
 
 try:                import cPickle as pickle
@@ -32,6 +32,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
           layers_per_dense_block=8, nb_dense_blocks=3,
           dropout_initial_keep_rate=1., dropout_decay_rate=0.977, dropout_decay_interval=10000,
+          lr_schedule='constant', lr=0.001,
           lr_max=1., lr_min=0.1, lr_period=3,
           random_seed=777,
           architecture='BiGRU',
@@ -113,7 +114,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
     with open(train_processor_save_path, 'wb') as f:    pickle.dump(train_processor, file=f, protocol=2)
     with open(valid_processor_save_path, 'wb') as f:    pickle.dump(valid_processor, file=f, protocol=2)
 
-    ''' Prepare the model and optimizers '''
+    ''' Prepare the model '''
     model = get_classifier(architecture=architecture,
                            input_shapes=(None, None),  # of (p, h)
                            include_word_vectors=not omit_word_vectors,
@@ -135,8 +136,12 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                            dropout_initial_keep_rate=dropout_initial_keep_rate,
                            dropout_decay_rate=dropout_decay_rate,
                            dropout_decay_interval=dropout_decay_interval)
-    # adam = L2Optimizer(Adam(3e-4), l2_full_step, l2_full_ratio, l2_difference_penalty)
-    model.compile(optimizer=SGD(lr=lr_max), loss='categorical_crossentropy', metrics=['acc'])
+
+    ''' Prepare optimizers and learning rate schedulers '''
+    if lr_schedule == 'constant':   optimizer, lr_scheduler = Adam(lr=lr), ConstantLearningRateScheduler()
+    elif lr_schedule == 'cyclic':   optimizer, lr_scheduler = SGD(lr=lr_max), CyclicLearningRateScheduler(lr_min, lr_max, period=lr_period)
+    else:                           raise NotImplementedError('Cannot find implementation for the specified schedule')
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['acc'])
     model.summary()
 
     ''' Initialize training '''
@@ -154,12 +159,11 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
 
     model.fit_generator(generator=data_generator(samples=train_samples, processor=train_processor, batch_size=batch_size),
                         steps_per_epoch=steps_per_epoch, epochs=epochs,
-                        validation_data=(valid_data[:-1], valid_data[-1]),
-                        callbacks=[TensorBoard(log_dir=log_dir),
-                                   ModelCheckpoint(filepath=os.path.join(models_dir, 'model.{epoch:02d}-{val_loss:.2f}.hdf5')),
-                                   EarlyStopping(patience=patience),
-                                   AllMetrics(valid_data[:-1], valid_data[-1]),
-                                   CyclicLearningRateScheduler(lr_min, lr_max, period=lr_period)],
+                        callbacks=[AllMetrics(valid_data[:-1], valid_data[-1]),
+                                   lr_scheduler,
+                                   TensorBoard(log_dir=log_dir),
+                                   ModelCheckpoint(filepath=os.path.join(models_dir, 'model-{epoch:02d}-f1-{val_f1:.2f}.hdf5'), monitor='val_f1', save_best_only=True, verbose=1, mode='max'),
+                                   EarlyStopping(patience=patience)],
                         class_weight=class_weights)
 
 

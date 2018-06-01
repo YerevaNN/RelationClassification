@@ -22,3 +22,15 @@ class CyclicLearningRateScheduler(LearningRateScheduler):
         new_lr = lr + self.sign * self.delta
         assert self.lr_min <= new_lr <= self.lr_max
         return new_lr
+
+
+class ConstantLearningRateScheduler(LearningRateScheduler):
+    def __init__(self, verbose=0):
+        super(ConstantLearningRateScheduler, self).__init__(schedule=self.schedule, verbose=verbose)
+
+    def on_epoch_begin(self, epoch, logs=None):
+        super(ConstantLearningRateScheduler, self).on_epoch_begin(epoch, logs)
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
+
+    def schedule(self, epoch, lr):
+        return lr
