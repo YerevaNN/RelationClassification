@@ -115,7 +115,7 @@ def train(batch_size=80, max_words=(60, 22), epochs=70, steps_per_epoch=500, pat
 
     ''' Prepare the model '''
     model = get_classifier(architecture=architecture,
-                           input_shapes=(None, None),  # of (p, h)
+                           input_shapes=tuple([None] * len(max_words)),
                            include_word_vectors=not omit_word_vectors,
                            word_embedding_weights=train_processor.word_mapping.vectors,
                            train_word_embeddings=train_word_embeddings,

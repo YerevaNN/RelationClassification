@@ -35,7 +35,7 @@ class Classifier(Model):
         self.nb_pos_tags = nb_pos_tags
 
         inputs, embeddings = self.create_inputs()
-        embeddings = [Concatenate()(embedding) for embedding in embeddings]
+        embeddings = [Concatenate()(list(embedding)) for embedding in embeddings]
 
         encodings = self.create_encodings(embeddings)
         interaction = self.create_interaction(encodings)
@@ -57,12 +57,12 @@ class Classifier(Model):
                                                self.include_pos_tag_features,
                                                self.include_chars]) if include]
         inputs = []
-        embeddings = [[], []]
+        embeddings = [[] for _ in range(len(self.input_shapes))]
         for create_input in creators:
             net_inputs, net_embeddings = create_input()
             inputs += net_inputs
-            embeddings[0].append(net_embeddings[0])
-            embeddings[1].append(net_embeddings[1])
+            for i in range(len(net_embeddings)):
+                embeddings[i].append(net_embeddings[i])
 
         return inputs, embeddings
 
