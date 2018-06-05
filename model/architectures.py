@@ -8,7 +8,7 @@ from feature_extractors.densenet import DenseNet
 from layers.decaying_dropout import DecayingDropout
 from layers.encoding import Encoding
 from layers.interaction import Interaction
-from model.input import WordVectorInput, CharInput, PosTagInput, ExactMatchInput
+from model.input import WordVectorInput, CharInput, PosTagInput
 from optimizers.l2optimizer import L2Optimizer
 
 
@@ -17,7 +17,6 @@ class Classifier(Model):
                  include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                  include_chars=True, chars_per_word=16, char_embedding_size=8,
                  include_pos_tag_features=True, nb_pos_tags=20, pos_tag_embedding_size=8,
-                 include_exact_match=True,
                  nb_labels=3,
                  inputs=None, outputs=None, name='RelationClassifier'):
         if inputs or outputs:
@@ -34,7 +33,6 @@ class Classifier(Model):
         self.include_pos_tag_features = include_pos_tag_features
         self.pos_tag_embedding_size = pos_tag_embedding_size
         self.nb_pos_tags = nb_pos_tags
-        self.include_exact_match = include_exact_match
 
         inputs, embeddings = self.create_inputs()
         embeddings = [Concatenate()(embedding) for embedding in embeddings]
@@ -49,17 +47,15 @@ class Classifier(Model):
         creators = [f for (f, include) in zip([WordVectorInput(shapes=self.input_shapes,
                                                                word_embedding_weights=self.word_embedding_weights,
                                                                train_word_embeddings=self.train_word_embeddings),
-                                               CharInput(shapes=self.input_shapes,
-                                                         chars_per_word=self.chars_per_word,
-                                                         embedding_size=self.char_embedding_size),
                                                PosTagInput(shapes=self.input_shapes,
                                                            nb_pos_tags=self.nb_pos_tags,
                                                            embedding_size=self.pos_tag_embedding_size),
-                                               ExactMatchInput(shapes=self.input_shapes)],
+                                               CharInput(shapes=self.input_shapes,
+                                                         chars_per_word=self.chars_per_word,
+                                                         embedding_size=self.char_embedding_size)],
                                               [self.include_word_vectors,
-                                               self.include_chars,
                                                self.include_pos_tag_features,
-                                               self.include_exact_match]) if include]
+                                               self.include_chars]) if include]
         inputs = []
         embeddings = [[], []]
         for create_input in creators:
@@ -153,7 +149,6 @@ def get_classifier(model_path=None,
                    include_word_vectors=True, word_embedding_weights=None, train_word_embeddings=True,
                    include_chars=True, chars_per_word=16, char_embedding_size=8,
                    include_pos_tag_features=True, nb_pos_tags=50, pos_tag_embedding_size=8,
-                   include_exact_match=True,
                    nb_labels=3,
                    first_scale_down_ratio=0.3, transition_scale_down_ratio=0.5, growth_rate=20,
                    layers_per_dense_block=8, nb_dense_blocks=3,
@@ -176,7 +171,6 @@ def get_classifier(model_path=None,
                                chars_per_word=chars_per_word, char_embedding_size=char_embedding_size,
                                include_pos_tag_features=include_pos_tag_features,
                                nb_pos_tags=nb_pos_tags, pos_tag_embedding_size=pos_tag_embedding_size,
-                               include_exact_match=include_exact_match,
                                dropout_rate=1.-dropout_initial_keep_rate,
                                nb_labels=nb_labels)
     elif architecture == 'DIIN':
@@ -188,7 +182,6 @@ def get_classifier(model_path=None,
                     chars_per_word=chars_per_word, char_embedding_size=char_embedding_size,
                     include_pos_tag_features=include_pos_tag_features,
                     nb_pos_tags=nb_pos_tags, pos_tag_embedding_size=pos_tag_embedding_size,
-                    include_exact_match=include_exact_match,
                     nb_labels=nb_labels,
                     first_scale_down_ratio=first_scale_down_ratio,
                     transition_scale_down_ratio=transition_scale_down_ratio,
