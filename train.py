@@ -161,7 +161,7 @@ def train(batch_size=80, max_words=(60, 22), epochs=70, steps_per_epoch=500, pat
                                    lr_scheduler,
                                    TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model-{epoch:02d}-f1-{val_f1:.2f}.hdf5'), monitor='val_f1', save_best_only=True, verbose=1, mode='max'),
-                                   EarlyStopping(patience=patience)],
+                                   EarlyStopping(monitor='val_f1', patience=patience, mode='max')],
                         class_weight=class_weights)
 
 
