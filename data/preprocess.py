@@ -21,8 +21,7 @@ class BasePreprocessor(object):
     def __init__(self, word_mapping=None, char_mapping=None,
                  part_of_speech_mapping=None, omit_labels=None,
                  max_words=(33, 20), chars_per_word=13,
-                 include_word_vectors=True, include_chars=True, include_pos_tags=True,
-                 include_amr_path=False, include_sdg_path=False, include_interaction_tuple=False):
+                 include_word_vectors=True, include_chars=True, include_pos_tags=True):
         self.word_mapping = word_mapping
         self.char_mapping = char_mapping
         self.part_of_speech_mapping = part_of_speech_mapping
@@ -34,10 +33,6 @@ class BasePreprocessor(object):
         self.include_word_vectors = include_word_vectors
         self.include_chars = include_chars
         self.include_pos_tags = include_pos_tags
-
-        self.include_interaction_tuple = include_interaction_tuple
-        self.include_amr_path = include_amr_path
-        self.include_sdg_path = include_sdg_path
 
     @staticmethod
     def load_data(file_path):
@@ -139,9 +134,14 @@ class BasePreprocessor(object):
 
 class BioNLPPreprocessor(BasePreprocessor):
 
-    def __init__(self, omit_interactions=None, include_single_interaction=True, **kwargs):
+    def __init__(self, omit_interactions=None, include_single_interaction=True,
+                 include_amr_path=False, include_sdg_path=False, include_interaction_tuple=False, **kwargs):
         self.valid_interactions = omit_interactions
         self.include_single_interaction = include_single_interaction
+
+        self.include_interaction_tuple = include_interaction_tuple
+        self.include_amr_path = include_amr_path
+        self.include_sdg_path = include_sdg_path
         super(BioNLPPreprocessor, self).__init__(**kwargs)
 
     @staticmethod
@@ -170,17 +170,9 @@ class BioNLPPreprocessor(BasePreprocessor):
 
         res = [text]
         if self.include_interaction_tuple:      res.append(' '.join(interaction_tuple))
-        if self.include_amr_path:               res.append(self.get_amr_path(sample=sample))
-        if self.include_sdg_path:               res.append(self.get_sdg_path(sample=sample))
+        if self.include_amr_path:               res.append(sample['amr_path'])
+        if self.include_sdg_path:               res.append(sample['sdg_path'])
         return tuple(res)
-
-    @staticmethod
-    def get_amr_path(sample):
-        return sample['amr_path']
-
-    @staticmethod
-    def get_sdg_path(sample):
-        return sample['sdg_path']
 
     def get_label(self, sample):
         return sample['label']
