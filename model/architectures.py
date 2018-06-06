@@ -35,7 +35,7 @@ class Classifier(Model):
         self.nb_pos_tags = nb_pos_tags
 
         inputs, embeddings = self.create_inputs()
-        embeddings = [Concatenate()(list(embedding)) for embedding in embeddings]
+        embeddings = [Concatenate()(embedding) if len(embedding) > 1 else embedding for embedding in embeddings]
 
         encodings = self.create_encodings(embeddings)
         interaction = self.create_interaction(encodings)
@@ -88,7 +88,7 @@ class BiGRUClassifier(Classifier):
                                   dropout=self.dropout_rate))(embedding) for embedding in embeddings]
 
     def create_interaction(self, encodings):
-        concat = Concatenate(axis=1)(encodings)
+        concat = Concatenate(axis=1)(encodings) if len(encodings) > 1 else encodings
         interaction = Bidirectional(GRU(units=128, dropout=self.dropout_rate))(concat)
         return interaction
 
