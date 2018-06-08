@@ -11,8 +11,9 @@ class CyclicLearningRateScheduler(LearningRateScheduler):
         self.sign = -1.
         super(CyclicLearningRateScheduler, self).__init__(schedule=self.schedule, verbose=verbose)
 
-    def on_epoch_begin(self, epoch, logs=None):
-        super(CyclicLearningRateScheduler, self).on_epoch_begin(epoch, logs)
+    def on_epoch_end(self, epoch, logs=None):
+        super(CyclicLearningRateScheduler, self).on_epoch_end(epoch, logs)
+        logs = logs or {}
         logs['lr'] = K.get_value(self.model.optimizer.lr)
 
     def schedule(self, epoch, lr):
@@ -28,8 +29,9 @@ class ConstantLearningRateScheduler(LearningRateScheduler):
     def __init__(self, verbose=0):
         super(ConstantLearningRateScheduler, self).__init__(schedule=self.schedule, verbose=verbose)
 
-    def on_epoch_begin(self, epoch, logs=None):
-        super(ConstantLearningRateScheduler, self).on_epoch_begin(epoch, logs)
+    def on_epoch_end(self, epoch, logs=None):
+        super(ConstantLearningRateScheduler, self).on_epoch_end(epoch, logs)
+        logs = logs or {}
         logs['lr'] = K.get_value(self.model.optimizer.lr)
 
     def schedule(self, epoch, lr):
