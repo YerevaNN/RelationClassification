@@ -25,7 +25,7 @@ try:                import cPickle as pickle
 except ImportError: import _pickle as pickle
 
 
-def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
+def train(batch_size=80, max_words=(60, 22), epochs=70, steps_per_epoch=500, patience=5,
           chars_per_word=20, char_embed_size=8,
           pos_tag_embedding_size=8,
           l2_full_step=100000, l2_full_ratio=9e-5, l2_difference_penalty=1e-3,
@@ -43,10 +43,9 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
           valid_processor_load_path=None, valid_processor_save_path='data/valid_processor.pkl',
           word_vec_load_path=None, max_word_vecs=None, normalize_word_vectors=False, train_word_embeddings=False,
           dataset='bionlp',
-          train_interaction=None, valid_interaction=None,
-          omit_single_interaction=False, omit_amr_path=False, omit_sdg_path=False,
-          omit_word_vectors=False, omit_chars=False,
-          omit_pos_tags=False, omit_exact_match=False):
+          train_interaction=None, valid_interaction=None, omit_single_interaction=False,
+          omit_interaction_tuple=False, omit_amr_path=False, omit_sdg_path=False,
+          omit_word_vectors=False, omit_chars=False, omit_pos_tags=False):
 
     # Create directories if they are not present
     if not os.path.exists(models_dir):  os.mkdir(models_dir)
@@ -65,19 +64,19 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
     
     ''' Prepare data '''
     if dataset == 'bionlp':
-        train_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
+        train_processor = BioNLPPreprocessor(max_words=max_words, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_pos_tags=not omit_pos_tags,
-                                             include_exact_match=not omit_exact_match,
+                                             include_interaction_tuple=not omit_interaction_tuple,
                                              include_amr_path=not omit_amr_path,
                                              include_sdg_path=not omit_sdg_path,
                                              include_single_interaction=not omit_single_interaction)
-        valid_processor = BioNLPPreprocessor(max_words_p=p, max_words_h=h, chars_per_word=chars_per_word,
+        valid_processor = BioNLPPreprocessor(max_words=max_words, chars_per_word=chars_per_word,
                                              include_word_vectors=not omit_word_vectors,
                                              include_chars=not omit_chars,
                                              include_pos_tags=not omit_pos_tags,
-                                             include_exact_match=not omit_exact_match,
+                                             include_interaction_tuple=not omit_interaction_tuple,
                                              include_amr_path=not omit_amr_path,
                                              include_sdg_path=not omit_sdg_path,
                                              include_single_interaction=not omit_single_interaction)
@@ -116,7 +115,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
 
     ''' Prepare the model '''
     model = get_classifier(architecture=architecture,
-                           input_shapes=(None, None),  # of (p, h)
+                           input_shapes=tuple([None] * len(max_words)),
                            include_word_vectors=not omit_word_vectors,
                            word_embedding_weights=train_processor.word_mapping.vectors,
                            train_word_embeddings=train_word_embeddings,
@@ -126,7 +125,6 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                            include_pos_tag_features=not omit_pos_tags,
                            nb_pos_tags=len(train_processor.part_of_speech_mapping.key_to_id),
                            pos_tag_embedding_size=pos_tag_embedding_size,
-                           include_exact_match=not omit_exact_match,
                            nb_labels=len(train_processor.get_labels()),
                            first_scale_down_ratio=first_scale_down_ratio,
                            transition_scale_down_ratio=transition_scale_down_ratio,
@@ -163,7 +161,7 @@ def train(batch_size=80, p=60, h=22, epochs=70, steps_per_epoch=500, patience=5,
                                    lr_scheduler,
                                    TensorBoard(log_dir=log_dir),
                                    ModelCheckpoint(filepath=os.path.join(models_dir, 'model-{epoch:02d}-f1-{val_f1:.2f}.hdf5'), monitor='val_f1', save_best_only=True, verbose=1, mode='max'),
-                                   EarlyStopping(patience=patience)],
+                                   EarlyStopping(monitor='val_f1', patience=patience, mode='max')],
                         class_weight=class_weights)
 
 

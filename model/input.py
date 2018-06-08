@@ -1,7 +1,6 @@
-from keras import backend as K
 from keras import Input, Sequential
 from keras.engine import InputLayer
-from keras.layers import Embedding, TimeDistributed, Bidirectional, GRU, Lambda
+from keras.layers import Embedding, TimeDistributed, Bidirectional, GRU
 
 
 class InputCreator(object):
@@ -66,15 +65,4 @@ class PosTagInput(InputCreator):
     def __call__(self, *args, **kwargs):
         inputs = [Input(shape=(shape,), dtype='int64') for shape in self.shapes]
         embeddings = [self.pos_tag_embedding(pos_tag_input) for pos_tag_input in inputs]
-        return inputs, embeddings
-
-
-class ExactMatchInput(InputCreator):
-    def __init__(self, shapes):
-        super(ExactMatchInput, self).__init__(shapes=shapes)
-
-    def __call__(self, *args, **kwargs):
-        expand_dim_layer = Lambda(lambda x: K.expand_dims(x, axis=-1))
-        inputs = [Input(shape=(shape,)) for shape in self.shapes]
-        embeddings = [expand_dim_layer(exact_match_input) for exact_match_input in inputs]
         return inputs, embeddings
